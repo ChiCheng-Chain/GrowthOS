@@ -72,7 +72,8 @@ fun TrainingListScreen(
         onBack = onBack,
         onOpenEffect = onOpenEffect,
         onOpenCreate = onOpenCreate,
-        onFinish = vm::finishTraining
+        onFinish = vm::finishTraining,
+        onDelete = vm::deleteTraining
     )
 }
 
@@ -83,9 +84,11 @@ private fun TrainingListContent(
     onBack: () -> Unit,
     onOpenEffect: (Long) -> Unit,
     onOpenCreate: () -> Unit,
-    onFinish: (Long, TrainingStatus) -> Unit
+    onFinish: (Long, TrainingStatus) -> Unit,
+    onDelete: (Long) -> Unit
 ) {
     var finishing by remember { mutableStateOf<TrainingWithNames?>(null) }
+    var deleting by remember { mutableStateOf<TrainingWithNames?>(null) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -121,7 +124,8 @@ private fun TrainingListContent(
                     TrainingRow(
                         item = item,
                         onClick = { onOpenEffect(item.training.id) },
-                        onFinish = { finishing = item }
+                        onFinish = { finishing = item },
+                        onDelete = { deleting = item }
                     )
                     LedgerRule(modifier = Modifier.padding(horizontal = 20.dp))
                 }
@@ -153,13 +157,32 @@ private fun TrainingListContent(
             }
         )
     }
+
+    // 物理删除确认(CRUD 补全):已结束训练项可删
+    deleting?.let { item ->
+        AlertDialog(
+            onDismissRequest = { deleting = null },
+            title = { Text("删除训练项") },
+            text = { Text("删除「${item.errorTypeName}」的训练项?不可恢复。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDelete(item.training.id)
+                    deleting = null
+                }) { Text("删除", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleting = null }) { Text("取消") }
+            }
+        )
+    }
 }
 
 @Composable
 private fun TrainingRow(
     item: TrainingWithNames,
     onClick: () -> Unit,
-    onFinish: () -> Unit
+    onFinish: () -> Unit,
+    onDelete: () -> Unit
 ) {
     val t = item.training
     Surface(
@@ -209,6 +232,12 @@ private fun TrainingRow(
                 TextButton(onClick = onFinish, modifier = Modifier.padding(start = 0.dp)) {
                     Text("结束", style = MaterialTheme.typography.labelLarge)
                 }
+            } else {
+                // 已结束(完成/放弃):可物理删除(CRUD 补全)
+                Spacer(Modifier.height(4.dp))
+                TextButton(onClick = onDelete, modifier = Modifier.padding(start = 0.dp)) {
+                    Text("删除", style = MaterialTheme.typography.labelLarge)
+                }
             }
         }
     }
@@ -255,7 +284,7 @@ private fun TrainingListDataPreview() {
                     TrainingWithNames(previewFinished, "压力下急躁", "羽毛球")
                 )
             ),
-            onBack = {}, onOpenEffect = {}, onOpenCreate = {}, onFinish = { _, _ -> }
+            onBack = {}, onOpenEffect = {}, onOpenCreate = {}, onFinish = { _, _ -> }, onDelete = {}
         )
     }
 }
@@ -266,7 +295,7 @@ private fun TrainingListEmptyPreview() {
     GrowthOSTheme {
         TrainingListContent(
             state = TrainingListUiState(),
-            onBack = {}, onOpenEffect = {}, onOpenCreate = {}, onFinish = { _, _ -> }
+            onBack = {}, onOpenEffect = {}, onOpenCreate = {}, onFinish = { _, _ -> }, onDelete = {}
         )
     }
 }

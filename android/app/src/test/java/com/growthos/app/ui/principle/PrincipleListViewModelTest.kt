@@ -221,7 +221,14 @@ internal class FakeErrorTypeDao : ErrorTypeDao {
     override fun observeAll(): Flow<List<ErrorType>> = all.asStateFlow()
     override suspend fun getById(id: Long): ErrorType? = all.value.firstOrNull { it.id == id }
     override suspend fun getByName(name: String): ErrorType? = all.value.firstOrNull { it.name == name }
+    override suspend fun update(errorType: ErrorType) {
+        all.update { list -> list.map { if (it.id == errorType.id) errorType else it } }
+    }
     override suspend fun sampleReferenceCount(id: Long): Int = 0
     override suspend fun trainingReferenceCount(id: Long): Int = 0
-    override suspend fun delete(id: Long) {}
+    override suspend fun reassignSamples(fromId: Long, toId: Long) {}
+    override suspend fun reassignTrainings(fromId: Long, toId: Long) {}
+    override suspend fun delete(id: Long) {
+        all.update { list -> list.filterNot { it.id == id } }
+    }
 }

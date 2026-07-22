@@ -2,6 +2,7 @@ package com.growthos.app.ui.principle
 
 import com.growthos.app.data.repository.DomainRepository
 import com.growthos.app.data.repository.ErrorTypeRepository
+import com.growthos.app.data.repository.ErrorTypeRepositoryImpl
 import com.growthos.app.data.repository.PrincipleRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -46,7 +47,7 @@ class PrincipleEditViewModelTest {
     ): PrincipleEditViewModel = PrincipleEditViewModel(
         principleRepository = PrincipleRepository(principleDao),
         domainRepository = DomainRepository(domainDao),
-        errorTypeRepository = ErrorTypeRepository(errorTypeDao),
+        errorTypeRepository = ErrorTypeRepositoryImpl(errorTypeDao),
         principleId = principleId,
         prefillTrainingId = prefillTrainingId,
         prefillSampleId = prefillSampleId
@@ -92,7 +93,7 @@ class PrincipleEditViewModelTest {
         val fixedNow = 99999L
         val vm = PrincipleEditViewModel(
             PrincipleRepository(dao), DomainRepository(FakeDomainDao()),
-            ErrorTypeRepository(FakeErrorTypeDao()),
+            ErrorTypeRepositoryImpl(FakeErrorTypeDao()),
             principleId = null, prefillTrainingId = null, prefillSampleId = null,
             now = { fixedNow }
         )

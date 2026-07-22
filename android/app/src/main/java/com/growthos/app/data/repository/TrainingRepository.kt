@@ -17,6 +17,11 @@ class TrainingRepository(private val dao: TrainingDao) {
 
     suspend fun delete(training: Training) = dao.delete(training)
 
+    /** 按 id 物理删除(CRUD 补全:已结束训练项可删)。不存在则无操作。 */
+    suspend fun deleteById(id: Long) {
+        dao.getById(id)?.let { dao.delete(it) }
+    }
+
     suspend fun getById(id: Long): Training? = dao.getById(id)
 
     fun observeInProgress(): Flow<List<Training>> = dao.observeInProgress()

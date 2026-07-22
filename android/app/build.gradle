@@ -12,6 +12,25 @@ android {
     namespace 'com.growthos.app'
     compileSdk 36
 
+    // 读取本地 keystore.properties(已 gitignore),配置 release 签名。
+    // 文件不存在时(如 CI)跳过签名,release 任务会产出未签名 APK。
+    def keystoreProperties = new Properties()
+    def keystorePropsFile = rootProject.file("keystore.properties")
+    if (keystorePropsFile.exists()) {
+        keystoreProperties.load(new FileInputStream(keystorePropsFile))
+    }
+
+    signingConfigs {
+        release {
+            if (keystorePropsFile.exists()) {
+                storeFile rootProject.file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
+
     defaultConfig {
         applicationId 'com.growthos.app'
         minSdk 26
@@ -29,8 +48,10 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled false
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
         }
     }
 

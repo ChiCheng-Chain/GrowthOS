@@ -9,6 +9,7 @@ import com.growthos.app.data.local.entity.Sample
 import com.growthos.app.data.local.entity.Training
 import com.growthos.app.data.repository.DomainRepository
 import com.growthos.app.data.repository.ErrorTypeRepository
+import com.growthos.app.data.repository.ErrorTypeRepositoryImpl
 import com.growthos.app.data.repository.PrincipleRepository
 import com.growthos.app.data.repository.SampleRepository
 import com.growthos.app.data.repository.TrainingRepository
@@ -47,7 +48,7 @@ class DataExporterTest {
         db = GrowthOSDatabase.createInMemory(ApplicationProvider.getApplicationContext())
         exporter = DataExporterImpl(
             domainRepository = DomainRepository(db.domainDao()),
-            errorTypeRepository = ErrorTypeRepository(db.errorTypeDao()),
+            errorTypeRepository = ErrorTypeRepositoryImpl(db.errorTypeDao()),
             sampleRepository = SampleRepository(db.sampleDao()),
             trainingRepository = TrainingRepository(db.trainingDao()),
             principleRepository = PrincipleRepository(db.principleDao()),

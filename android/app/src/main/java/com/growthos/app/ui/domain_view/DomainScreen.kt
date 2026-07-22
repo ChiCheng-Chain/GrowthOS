@@ -154,16 +154,7 @@ fun DomainContent(
         if (domainState.isEmpty) {
             EmptyState(onOpenCreate = onOpenCreate)
         } else {
-            // 切换 chips
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Eyebrow("切换")
-            }
+            // 切换 chips:"切换"眉标与领域 chips + 新增按钮同处一行,基线对齐。
             FlowRow(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -171,6 +162,7 @@ fun DomainContent(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                Eyebrow("切换")
                 domainState.domains.forEach { domain ->
                     DomainChip(
                         name = domain.name,

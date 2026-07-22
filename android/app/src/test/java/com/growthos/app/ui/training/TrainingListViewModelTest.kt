@@ -123,6 +123,35 @@ class TrainingListViewModelTest {
         advanceUntilIdle()
         assertEquals(TrainingStatus.ABANDONED, vm.uiState.value.trainings.first().training.status)
     }
+
+    @Test
+    fun `deleteTraining removes training from list`() = runTest(testDispatcher) {
+        val dao = FakeTrainingDao()
+        dao.insert(makeTraining(d1, e1, status = TrainingStatus.COMPLETED, startedAt = 100L, id = 1))
+        dao.insert(makeTraining(d1, e1, status = TrainingStatus.IN_PROGRESS, startedAt = 200L, id = 2))
+        val vm = newVm(dao)
+        advanceUntilIdle()
+        assertEquals(2, vm.uiState.value.trainings.size)
+
+        vm.deleteTraining(1L)
+        advanceUntilIdle()
+
+        val list = vm.uiState.value.trainings
+        assertEquals(1, list.size)
+        assertEquals(2L, list.first().training.id) // 只剩进行中的
+    }
+
+    @Test
+    fun `deleteTraining nonexistent id is no-op`() = runTest(testDispatcher) {
+        val dao = FakeTrainingDao()
+        dao.insert(makeTraining(d1, e1, status = TrainingStatus.COMPLETED, startedAt = 100L, id = 1))
+        val vm = newVm(dao)
+        advanceUntilIdle()
+
+        vm.deleteTraining(99999L) // 不存在,不崩
+        advanceUntilIdle()
+        assertEquals(1, vm.uiState.value.trainings.size)
+    }
 }
 
 // ---------- 共享 Fake(供三个 Training ViewModelTest 复用) ----------
@@ -277,12 +306,20 @@ internal class FakeErrorTypeDao : ErrorTypeDao {
         return errorType.id
     }
 
+    override suspend fun update(errorType: ErrorType) {
+        all.update { list -> list.map { if (it.id == errorType.id) errorType else it } }
+    }
+
     override fun observeAll(): Flow<List<ErrorType>> = all.asStateFlow()
     override suspend fun getById(id: Long): ErrorType? = all.value.firstOrNull { it.id == id }
     override suspend fun getByName(name: String): ErrorType? = all.value.firstOrNull { it.name == name }
     override suspend fun sampleReferenceCount(id: Long): Int = 0
     override suspend fun trainingReferenceCount(id: Long): Int = 0
-    override suspend fun delete(id: Long) {}
+    override suspend fun reassignSamples(fromId: Long, toId: Long) {}
+    override suspend fun reassignTrainings(fromId: Long, toId: Long) {}
+    override suspend fun delete(id: Long) {
+        all.update { list -> list.filterNot { it.id == id } }
+    }
 }
 
 /** 内存假 DomainDao:实现 getById + observeVisible。 */

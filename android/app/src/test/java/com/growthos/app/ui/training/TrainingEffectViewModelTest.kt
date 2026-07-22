@@ -2,6 +2,7 @@ package com.growthos.app.ui.training
 
 import com.growthos.app.data.repository.DomainRepository
 import com.growthos.app.data.repository.ErrorTypeRepository
+import com.growthos.app.data.repository.ErrorTypeRepositoryImpl
 import com.growthos.app.data.repository.SampleRepository
 import com.growthos.app.data.repository.TrainingRepository
 import com.growthos.app.domain.model.Attribution
@@ -46,7 +47,7 @@ class TrainingEffectViewModelTest {
         return TrainingEffectViewModel(
             trainingRepository = TrainingRepository(trainingDao),
             sampleRepository = SampleRepository(sampleDao),
-            errorTypeRepository = ErrorTypeRepository(errorTypeDao),
+            errorTypeRepository = ErrorTypeRepositoryImpl(errorTypeDao),
             domainRepository = DomainRepository(domainDao),
             trainingId = trainingId
         )

@@ -2,6 +2,7 @@ package com.growthos.app.ui.training
 
 import com.growthos.app.data.repository.DomainRepository
 import com.growthos.app.data.repository.ErrorTypeRepository
+import com.growthos.app.data.repository.ErrorTypeRepositoryImpl
 import com.growthos.app.data.repository.TrainingRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -44,7 +45,7 @@ class TrainingEditViewModelTest {
         prefillErrorTypeId: Long?
     ): TrainingEditViewModel = TrainingEditViewModel(
         trainingRepository = TrainingRepository(trainingDao),
-        errorTypeRepository = ErrorTypeRepository(errorTypeDao),
+        errorTypeRepository = ErrorTypeRepositoryImpl(errorTypeDao),
         domainRepository = DomainRepository(domainDao),
         selectedStore = store,
         prefillErrorTypeId = prefillErrorTypeId
@@ -98,7 +99,7 @@ class TrainingEditViewModelTest {
         val fixedNow = 123456789L
         val vm = TrainingEditViewModel(
             TrainingRepository(trainingDao),
-            ErrorTypeRepository(errorTypeDao),
+            ErrorTypeRepositoryImpl(errorTypeDao),
             DomainRepository(domainDao),
             store,
             prefillErrorTypeId = e1,

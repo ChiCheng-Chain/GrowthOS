@@ -41,6 +41,11 @@ class TrainingListViewModel(
         trainingRepository.finish(id, status)
     }
 
+    /** 物理删除已结束训练项(CRUD 补全)。列表 Flow 自动刷新。 */
+    fun deleteTraining(id: Long) = viewModelScope.launch {
+        trainingRepository.deleteById(id)
+    }
+
     class Factory(
         private val trainingRepository: TrainingRepository
     ) : ViewModelProvider.Factory {

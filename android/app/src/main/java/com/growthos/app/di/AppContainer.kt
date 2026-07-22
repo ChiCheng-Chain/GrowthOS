@@ -8,6 +8,7 @@ import com.growthos.app.data.local.SelectedDomainStore
 import com.growthos.app.data.local.SelectedDomainStoreImpl
 import com.growthos.app.data.repository.DomainRepository
 import com.growthos.app.data.repository.ErrorTypeRepository
+import com.growthos.app.data.repository.ErrorTypeRepositoryImpl
 import com.growthos.app.data.repository.PrincipleRepository
 import com.growthos.app.data.repository.SampleRepository
 import com.growthos.app.data.repository.TrainingRepository
@@ -25,7 +26,7 @@ class AppContainer(private val context: Context) {
     private val database: GrowthOSDatabase by lazy { GrowthOSDatabase.create(context) }
 
     val domainRepository: DomainRepository by lazy { DomainRepository(database.domainDao()) }
-    val errorTypeRepository: ErrorTypeRepository by lazy { ErrorTypeRepository(database.errorTypeDao()) }
+    val errorTypeRepository: ErrorTypeRepository by lazy { ErrorTypeRepositoryImpl(database.errorTypeDao()) }
     val sampleRepository: SampleRepository by lazy { SampleRepository(database.sampleDao()) }
     val trainingRepository: TrainingRepository by lazy { TrainingRepository(database.trainingDao()) }
     val principleRepository: PrincipleRepository by lazy { PrincipleRepository(database.principleDao()) }

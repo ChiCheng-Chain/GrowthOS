@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import com.growthos.app.ui.domain_view.DomainScreen
 import com.growthos.app.ui.record.RecordScreen
 import com.growthos.app.ui.record.SampleEditScreen
+import com.growthos.app.ui.error_type.ErrorTypeListScreen
 import com.growthos.app.ui.principle.PrincipleEditScreen
 import com.growthos.app.ui.principle.PrincipleListScreen
 import com.growthos.app.ui.settings.SettingsScreen
@@ -83,6 +84,9 @@ private object Routes {
 
     // 阶段 7 设置
     const val SETTINGS = "settings"
+
+    // CRUD 补全:错误类型管理页
+    const val ERROR_TYPES = "error_types"
 }
 
 @Composable
@@ -140,6 +144,9 @@ fun GrowthOSApp() {
                     },
                     onNavigateToPrincipleList = {
                         navController.navigate(Routes.PRINCIPLE_LIST)
+                    },
+                    onNavigateToErrorTypes = {
+                        navController.navigate(Routes.ERROR_TYPES)
                     },
                     onNavigateToSettings = {
                         navController.navigate(Routes.SETTINGS)
@@ -249,6 +256,11 @@ fun GrowthOSApp() {
             }
             composable(Routes.SETTINGS) {
                 SettingsScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(Routes.ERROR_TYPES) {
+                ErrorTypeListScreen(
                     onBack = { navController.popBackStack() }
                 )
             }

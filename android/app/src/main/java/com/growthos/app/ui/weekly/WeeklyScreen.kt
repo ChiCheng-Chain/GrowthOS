@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -20,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -54,6 +56,7 @@ fun WeeklyScreen(
     onNavigateToCreateTraining: (Long) -> Unit = {},
     onNavigateToTrainingList: () -> Unit = {},
     onNavigateToPrincipleList: () -> Unit = {},
+    onNavigateToErrorTypes: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {}
 ) {
     val container = (LocalContext.current.applicationContext as GrowthOSApp).container
@@ -69,6 +72,7 @@ fun WeeklyScreen(
         onNavigateToCreateTraining = onNavigateToCreateTraining,
         onNavigateToTrainingList = onNavigateToTrainingList,
         onNavigateToPrincipleList = onNavigateToPrincipleList,
+        onNavigateToErrorTypes = onNavigateToErrorTypes,
         onNavigateToSettings = onNavigateToSettings
     )
 }
@@ -82,6 +86,7 @@ fun WeeklyContent(
     onNavigateToCreateTraining: (Long) -> Unit = {},
     onNavigateToTrainingList: () -> Unit = {},
     onNavigateToPrincipleList: () -> Unit = {},
+    onNavigateToErrorTypes: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {}
 ) {
     Column(
@@ -95,40 +100,19 @@ fun WeeklyContent(
             subtitle = "最近 ${state.days} 天 · ${state.sampleCount} 条样本"
         )
 
-        // 阶段 5/6/7:训练项列表 + 原则库 + 设置入口(复盘 Tab 子页面)
+        // 阶段 5/6/7 + CRUD 补全:训练项 + 原则库 + 错误类型 + 设置入口。
+        // 浅底圆角小 tag,有功能实体感但弱色小字,不抢页面主视觉。
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.End)
+                .padding(horizontal = 20.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Surface(onClick = onNavigateToTrainingList, color = MaterialTheme.colorScheme.background) {
-                Text(
-                    "训练项 →",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontFamily = MonoFamily,
-                    modifier = Modifier.padding(vertical = 6.dp)
-                )
-            }
-            Surface(onClick = onNavigateToPrincipleList, color = MaterialTheme.colorScheme.background) {
-                Text(
-                    "原则库 →",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontFamily = MonoFamily,
-                    modifier = Modifier.padding(vertical = 6.dp)
-                )
-            }
-            Surface(onClick = onNavigateToSettings, color = MaterialTheme.colorScheme.background) {
-                Text(
-                    "设置 →",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontFamily = MonoFamily,
-                    modifier = Modifier.padding(vertical = 6.dp)
-                )
-            }
+            SubEntry("训练项", onNavigateToTrainingList)
+            SubEntry("原则库", onNavigateToPrincipleList)
+            SubEntry("错误类型", onNavigateToErrorTypes)
+            SubEntry("设置", onNavigateToSettings)
         }
 
         // F6 时间选择器 + F7 领域选择器(顶部 chips)
@@ -343,6 +327,25 @@ private fun EmptyHint(text: String) {
         text = text,
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+}
+
+/**
+ * 周复盘页次级入口:浅底圆角小 tag,有功能实体感但仍是弱色小字,不抢主视觉。
+ * 比纯文字更像可点击元素,同时不破坏账本式版面。
+ */
+@Composable
+private fun SubEntry(text: String, onClick: () -> Unit) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        fontFamily = MonoFamily,
+        modifier = Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable { onClick() }
+            .padding(horizontal = 10.dp, vertical = 5.dp)
     )
 }
 

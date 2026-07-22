@@ -12,6 +12,7 @@ import com.growthos.app.data.local.relation.ErrorTypeCount
 import com.growthos.app.data.local.relation.SampleWithErrorType
 import com.growthos.app.data.repository.DomainRepository
 import com.growthos.app.data.repository.ErrorTypeRepository
+import com.growthos.app.data.repository.ErrorTypeRepositoryImpl
 import com.growthos.app.data.repository.SampleRepository
 import com.growthos.app.domain.model.Attribution
 import kotlinx.coroutines.Dispatchers
@@ -65,7 +66,7 @@ class SampleViewModelTest {
         sampleId: Long? = null
     ): SampleViewModel = SampleViewModel(
         sampleRepository = SampleRepository(sampleDao),
-        errorTypeRepository = ErrorTypeRepository(errorTypeDao),
+        errorTypeRepository = ErrorTypeRepositoryImpl(errorTypeDao),
         domainRepository = DomainRepository(domainDao),
         selectedStore = store,
         sampleId = sampleId,
@@ -486,8 +487,11 @@ private class FakeErrorTypeDao(
     override fun observeAll(): Flow<List<ErrorType>> = all.map { it.sortedBy { e -> e.createdAt } }
     override suspend fun getById(id: Long): ErrorType? = all.value.firstOrNull { it.id == id }
     override suspend fun getByName(name: String): ErrorType? = all.value.firstOrNull { it.name == name }
+    override suspend fun update(errorType: ErrorType) = upsert(errorType)
     override suspend fun sampleReferenceCount(id: Long): Int = sampleRefCount(id)
     override suspend fun trainingReferenceCount(id: Long): Int = trainingRefCount(id)
+    override suspend fun reassignSamples(fromId: Long, toId: Long) {}
+    override suspend fun reassignTrainings(fromId: Long, toId: Long) {}
     override suspend fun delete(id: Long) {
         all.update { list -> list.filterNot { it.id == id } }
     }

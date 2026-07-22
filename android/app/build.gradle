@@ -1,0 +1,107 @@
+// Note: Kotlin 2.0+ 的 Compose Compiler 是单独的 Kotlin 插件(org.jetbrains.kotlin.plugin.compose),
+// 在 libs.versions.toml 里以 kotlin-compose 列出。在 Groovy 里通过 alias 引入。
+plugins {
+    alias libs.plugins.android.application
+    alias libs.plugins.kotlin.android
+    alias libs.plugins.kotlin.serialization
+    alias libs.plugins.ksp
+    alias libs.plugins.kotlin.compose
+}
+
+android {
+    namespace 'com.growthos.app'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'com.growthos.app'
+        minSdk 26
+        targetSdk 36
+        versionCode 1
+        versionName '0.1.0'
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+    }
+
+    // Room schema 导出位置(KSP 参数)
+    ksp {
+        arg 'room.schemaLocation', "$projectDir/schemas"
+        arg 'room.incremental', 'true'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    buildFeatures {
+        compose true
+    }
+
+    packagingOptions {
+        resources {
+            excludes += ['/META-INF/{AL2.0,LGPL2.1}']
+        }
+    }
+
+    testOptions {
+        unitTests {
+            includeAndroidResources = true
+        }
+    }
+}
+
+dependencies {
+    // Compose
+    implementation platform(libs.androidx.compose.bom)
+    implementation libs.androidx.compose.ui
+    implementation libs.androidx.compose.ui.graphics
+    implementation libs.androidx.compose.ui.tooling.preview
+    implementation libs.androidx.compose.material3
+    implementation libs.androidx.compose.material.icons.extended
+    implementation libs.androidx.compose.ui.text.google.fonts
+    implementation libs.androidx.activity.compose
+
+    // Lifecycle / ViewModel
+    implementation libs.androidx.lifecycle.runtime.ktx
+    implementation libs.androidx.lifecycle.viewmodel.compose
+
+    // Navigation
+    implementation libs.androidx.navigation.compose
+
+    // Room
+    implementation libs.androidx.room.runtime
+    implementation libs.androidx.room.ktx
+    ksp libs.androidx.room.compiler
+
+    // DataStore
+    implementation libs.androidx.datastore.preferences
+
+    // Serialization
+    implementation libs.kotlinx.serialization.json
+
+    // Coroutines
+    implementation libs.kotlinx.coroutines.android
+
+    // Test
+    testImplementation libs.junit
+    testImplementation libs.robolectric
+    testImplementation libs.androidx.room.testing
+    testImplementation libs.androidx.test.core
+    testImplementation libs.kotlinx.coroutines.test
+    testImplementation libs.kotlinx.coroutines.android
+    androidTestImplementation libs.androidx.junit
+    androidTestImplementation libs.androidx.espresso.core
+
+    // Compose tooling (debug only)
+    debugImplementation libs.androidx.compose.ui.tooling
+}

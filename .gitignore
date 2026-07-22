@@ -1,0 +1,15 @@
+# 本机开发环境与安装包(不入库)
+.setup/
+
+# Claude Code / skills 本地状态(工具链,非项目代码)
+.agents/
+.claude/
+skills-lock.json
+
+# IDE
+.idea/
+*.iml
+
+# OS
+Thumbs.db
+.DS_Store

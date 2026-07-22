@@ -1,0 +1,17 @@
+# Android Studio / Gradle / AGP wrapper 相关
+.gradle/
+build/
+local.properties
+*.iml
+.idea/
+captures/
+.cxx/
+
+# Room schema 输出目录
+app/schemas/
+
+# 安装包、临时文件
+*.apk
+*.aab
+*.aar
+*.log

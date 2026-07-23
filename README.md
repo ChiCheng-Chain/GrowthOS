@@ -87,4 +87,4 @@ gradle -p android :app:testDebugUnitTest
 
 ## License
 
-私有项目,未开源。
+[MIT License](LICENSE)

@@ -4,10 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.growthos.app.data.local.SelectedDomainStore
+import com.growthos.app.data.local.entity.Knowledge
 import com.growthos.app.data.local.entity.Principle
 import com.growthos.app.data.local.relation.ErrorTypeCount
 import com.growthos.app.data.local.relation.SampleWithErrorType
 import com.growthos.app.data.local.relation.TrainingWithTypeName
+import com.growthos.app.data.repository.KnowledgeRepository
 import com.growthos.app.data.repository.PrincipleRepository
 import com.growthos.app.data.repository.SampleRepository
 import com.growthos.app.data.repository.TrainingRepository
@@ -34,25 +36,26 @@ data class DomainStatsUiState(
     val errorDistribution: List<ErrorTypeCount> = emptyList(),
     val inProgressTrainings: List<TrainingWithTypeName> = emptyList(),
     val recentPrinciples: List<Principle> = emptyList(),
+    val recentKnowledges: List<Knowledge> = emptyList(),
     val filteredSamples: List<SampleWithErrorType> = emptyList(),
     val filter: SampleFilter = SampleFilter(),
-    val hasDomain: Boolean = false          // 是否有选中领域(false → 四区块全空)
+    val hasDomain: Boolean = false
 ) {
-    /** F5 筛选条的错误类型选项:复用 errorDistribution(该领域出现过的错误类型 + 频次)。 */
     val availableErrorTypes: List<ErrorTypeCount> get() = errorDistribution
 }
 
 data class SampleFilter(
-    val errorTypeId: Long? = null,       // null = 全部
-    val attribution: Attribution? = null // null = 全部
+    val errorTypeId: Long? = null,
+    val attribution: Attribution? = null
 )
 
-/** 四区块原始数据 + 全量带名样本(供筛选),内部聚合用。 */
+/** 五区块原始数据 + 全量带名样本(供筛选),内部聚合用。 */
 private data class DomainData(
     val recentSamples: List<SampleWithErrorType>,
     val errorDistribution: List<ErrorTypeCount>,
     val inProgressTrainings: List<TrainingWithTypeName>,
     val recentPrinciples: List<Principle>,
+    val recentKnowledges: List<Knowledge>,
     val baseSamples: List<SampleWithErrorType>,
     val hasDomain: Boolean
 )
@@ -62,32 +65,47 @@ class DomainStatsViewModel(
     private val sampleRepository: SampleRepository,
     private val trainingRepository: TrainingRepository,
     private val principleRepository: PrincipleRepository,
+    private val knowledgeRepository: KnowledgeRepository,
     private val selectedStore: SelectedDomainStore
 ) : ViewModel() {
 
     private val filterState = MutableStateFlow(SampleFilter())
 
-    // 数据流:随 selectedDomainId 切换(flatMapLatest)。filter 不进这里,避免 filter 变重查数据(设计 D2)。
+    // 数据流:随 selectedDomainId 切换(flatMapLatest)。
+    // principles + knowledges 先 combine 成 Pair,再并入主 combine(避免 6 路超 combine 5 参上限)。
     private val dataFlow = selectedStore.flow.flatMapLatest { domainId ->
+        // principles + knowledges 先 combine 成 Pair,再并入主 combine(避免超 combine 5 参上限)
         if (domainId == null) {
+            val principlesAndKnowledges = combine(
+                kotlinx.coroutines.flow.flowOf(emptyList<Principle>()),
+                kotlinx.coroutines.flow.flowOf(emptyList<Knowledge>())
+            ) { p, k -> p to k }
+
             combine(
                 kotlinx.coroutines.flow.flowOf(emptyList<SampleWithErrorType>()),
                 kotlinx.coroutines.flow.flowOf(emptyList<ErrorTypeCount>()),
                 kotlinx.coroutines.flow.flowOf(emptyList<TrainingWithTypeName>()),
-                kotlinx.coroutines.flow.flowOf(emptyList<Principle>()),
+                principlesAndKnowledges,
                 kotlinx.coroutines.flow.flowOf(emptyList<SampleWithErrorType>())
-            ) { recent, dist, trainings, principles, base ->
-                DomainData(recent, dist, trainings, principles.take(PRINCIPLE_LIMIT), base, hasDomain = false)
+            ) { recent, dist, trainings, pk, base ->
+                val (principles, knowledges) = pk
+                DomainData(recent, dist, trainings, principles.take(PRINCIPLE_LIMIT), knowledges.take(KNOWLEDGE_LIMIT), base, hasDomain = false)
             }
         } else {
+            val principlesAndKnowledges = combine(
+                principleRepository.observeByDomain(domainId),
+                knowledgeRepository.observeByDomain(domainId)
+            ) { p, k -> p to k }
+
             combine(
                 sampleRepository.observeRecentByDomain(domainId, RECENT_LIMIT),
                 sampleRepository.observeTopErrorTypes(domainId, 0L, Long.MAX_VALUE, DISTRIBUTION_LIMIT),
                 trainingRepository.observeInProgressByDomainWithTypeName(domainId),
-                principleRepository.observeByDomain(domainId),
+                principlesAndKnowledges,
                 sampleRepository.observeWithNames(domainId)
-            ) { recent, dist, trainings, principles, base ->
-                DomainData(recent, dist, trainings, principles.take(PRINCIPLE_LIMIT), base, hasDomain = true)
+            ) { recent, dist, trainings, pk, base ->
+                val (principles, knowledges) = pk
+                DomainData(recent, dist, trainings, principles.take(PRINCIPLE_LIMIT), knowledges.take(KNOWLEDGE_LIMIT), base, hasDomain = true)
             }
         }
     }
@@ -98,6 +116,7 @@ class DomainStatsViewModel(
             errorDistribution = data.errorDistribution,
             inProgressTrainings = data.inProgressTrainings,
             recentPrinciples = data.recentPrinciples,
+            recentKnowledges = data.recentKnowledges,
             filteredSamples = if (data.hasDomain) applyFilter(data.baseSamples, filter) else emptyList(),
             filter = filter,
             hasDomain = data.hasDomain
@@ -141,16 +160,18 @@ class DomainStatsViewModel(
         private val sampleRepository: SampleRepository,
         private val trainingRepository: TrainingRepository,
         private val principleRepository: PrincipleRepository,
+        private val knowledgeRepository: KnowledgeRepository,
         private val store: SelectedDomainStore
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            DomainStatsViewModel(sampleRepository, trainingRepository, principleRepository, store) as T
+            DomainStatsViewModel(sampleRepository, trainingRepository, principleRepository, knowledgeRepository, store) as T
     }
 
     private companion object {
         const val RECENT_LIMIT = 5
         const val DISTRIBUTION_LIMIT = 8
         const val PRINCIPLE_LIMIT = 5
+        const val KNOWLEDGE_LIMIT = 5
     }
 }

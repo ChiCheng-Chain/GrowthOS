@@ -36,6 +36,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.growthos.app.GrowthOSApp
 import com.growthos.app.data.local.entity.Domain
+import com.growthos.app.data.local.entity.Knowledge
 import com.growthos.app.data.local.entity.Principle
 import com.growthos.app.data.local.relation.ErrorTypeCount
 import com.growthos.app.data.local.relation.SampleWithErrorType
@@ -67,7 +68,8 @@ import java.util.Locale
 fun DomainScreen(
     onOpenSample: (Long) -> Unit = {},
     onNavigateToEffect: (Long) -> Unit = {},
-    onNavigateToPrincipleEdit: (Long) -> Unit = {}
+    onNavigateToPrincipleEdit: (Long) -> Unit = {},
+    onNavigateToKnowledgeEdit: (Long) -> Unit = {}
 ) {
     val container = (LocalContext.current.applicationContext as GrowthOSApp).container
     val domainVm: DomainViewModel = viewModel(
@@ -78,6 +80,7 @@ fun DomainScreen(
             container.sampleRepository,
             container.trainingRepository,
             container.principleRepository,
+            container.knowledgeRepository,
             container.selectedDomainStore
         )
     )
@@ -110,6 +113,7 @@ fun DomainScreen(
         onOpenSample = onOpenSample,
         onNavigateToEffect = onNavigateToEffect,
         onNavigateToPrincipleEdit = onNavigateToPrincipleEdit,
+        onNavigateToKnowledgeEdit = onNavigateToKnowledgeEdit,
         onFilterErrorType = { id ->
             statsVm.filterByErrorType(id)
             scope.launch { scrollState.animateScrollTo(scrollState.maxValue) }
@@ -135,6 +139,7 @@ fun DomainContent(
     onOpenSample: (Long) -> Unit,
     onNavigateToEffect: (Long) -> Unit,
     onNavigateToPrincipleEdit: (Long) -> Unit,
+    onNavigateToKnowledgeEdit: (Long) -> Unit,
     onFilterErrorType: (Long?) -> Unit,
     onFilterAttribution: (Attribution?) -> Unit,
     onClearFilter: () -> Unit
@@ -251,6 +256,17 @@ fun DomainContent(
             }
             LedgerRule()
 
+            // 近期知识(外部摄取:经验/待办,可点进编辑)
+            SectionLabel("近期知识")
+            if (statsState.recentKnowledges.isEmpty()) {
+                EmptyHint("还没有知识,去知识库新建")
+            } else {
+                statsState.recentKnowledges.forEach { k ->
+                    KnowledgeMiniRow(k) { onNavigateToKnowledgeEdit(k.id) }
+                }
+            }
+            LedgerRule()
+
             // F5 筛选条 + 样本列表
             SectionLabel("样本列表")
             SampleFilterBar(
@@ -356,6 +372,47 @@ private fun PrincipleRow(principle: Principle, onClick: () -> Unit) {
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontFamily = MonoFamily
+            )
+        }
+    }
+    LedgerRule(modifier = Modifier.padding(horizontal = 20.dp))
+}
+
+@Composable
+private fun KnowledgeMiniRow(knowledge: Knowledge, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        color = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    knowledge.type.label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontFamily = MonoFamily
+                )
+                Text(
+                    formatDate(knowledge.createdAt),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontFamily = MonoFamily
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                knowledge.content,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onBackground
             )
         }
     }
@@ -585,6 +642,7 @@ private fun DomainContentPreview() {
             onSelect = {}, onOpenCreate = {}, onOpenEdit = {},
             onSave = { _, _ -> }, onUnhide = {}, onDismissDialog = {},
             onOpenSample = {}, onNavigateToEffect = {}, onNavigateToPrincipleEdit = {},
+            onNavigateToKnowledgeEdit = {},
             onFilterErrorType = {}, onFilterAttribution = {},
             onClearFilter = {}
         )

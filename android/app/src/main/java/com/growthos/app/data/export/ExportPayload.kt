@@ -2,6 +2,7 @@ package com.growthos.app.data.export
 
 import com.growthos.app.data.local.entity.Domain
 import com.growthos.app.data.local.entity.ErrorType
+import com.growthos.app.data.local.entity.Knowledge
 import com.growthos.app.data.local.entity.Principle
 import com.growthos.app.data.local.entity.Sample
 import com.growthos.app.data.local.entity.Training
@@ -32,5 +33,6 @@ data class ExportPayload(
     val samples: List<Sample>,
     val trainings: List<Training>,
     val principles: List<Principle>,
+    val knowledges: List<Knowledge>,
     val meta: ExportMeta
 )

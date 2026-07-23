@@ -27,6 +27,8 @@ import com.growthos.app.ui.domain_view.DomainScreen
 import com.growthos.app.ui.record.RecordScreen
 import com.growthos.app.ui.record.SampleEditScreen
 import com.growthos.app.ui.error_type.ErrorTypeListScreen
+import com.growthos.app.ui.knowledge.KnowledgeEditScreen
+import com.growthos.app.ui.knowledge.KnowledgeListScreen
 import com.growthos.app.ui.principle.PrincipleEditScreen
 import com.growthos.app.ui.principle.PrincipleListScreen
 import com.growthos.app.ui.settings.SettingsScreen
@@ -87,6 +89,15 @@ private object Routes {
 
     // CRUD 补全:错误类型管理页
     const val ERROR_TYPES = "error_types"
+
+    // 知识库
+    const val KNOWLEDGE_LIST = "knowledge_list"
+    const val KNOWLEDGE_EDIT = "knowledge_edit"
+    const val KNOWLEDGE_EDIT_WITH_ID = "knowledge_edit?knowledgeId={knowledgeId}"
+    fun knowledgeEdit(knowledgeId: Long? = null): String {
+        val kid = knowledgeId?.takeIf { it > 0 } ?: -1L
+        return "knowledge_edit?knowledgeId=$kid"
+    }
 }
 
 @Composable
@@ -131,6 +142,9 @@ fun GrowthOSApp() {
                     },
                     onNavigateToPrincipleEdit = { principleId ->
                         navController.navigate(Routes.principleEdit(principleId = principleId))
+                    },
+                    onNavigateToKnowledgeEdit = { knowledgeId ->
+                        navController.navigate(Routes.knowledgeEdit(knowledgeId))
                     }
                 )
             }
@@ -147,6 +161,9 @@ fun GrowthOSApp() {
                     },
                     onNavigateToErrorTypes = {
                         navController.navigate(Routes.ERROR_TYPES)
+                    },
+                    onNavigateToKnowledge = {
+                        navController.navigate(Routes.KNOWLEDGE_LIST)
                     },
                     onNavigateToSettings = {
                         navController.navigate(Routes.SETTINGS)
@@ -261,6 +278,32 @@ fun GrowthOSApp() {
             }
             composable(Routes.ERROR_TYPES) {
                 ErrorTypeListScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(Routes.KNOWLEDGE_LIST) {
+                KnowledgeListScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenEdit = { knowledgeId ->
+                        navController.navigate(Routes.knowledgeEdit(knowledgeId))
+                    },
+                    onOpenCreate = {
+                        navController.navigate(Routes.knowledgeEdit())
+                    }
+                )
+            }
+            composable(
+                route = Routes.KNOWLEDGE_EDIT_WITH_ID,
+                arguments = listOf(
+                    navArgument("knowledgeId") {
+                        type = NavType.LongType
+                        defaultValue = -1L
+                    }
+                )
+            ) { backStackEntry ->
+                val knowledgeId = backStackEntry.arguments?.getLong("knowledgeId") ?: -1L
+                KnowledgeEditScreen(
+                    knowledgeId = knowledgeId.takeIf { it > 0 },
                     onBack = { navController.popBackStack() }
                 )
             }

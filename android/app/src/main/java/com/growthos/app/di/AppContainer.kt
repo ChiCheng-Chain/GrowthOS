@@ -9,6 +9,7 @@ import com.growthos.app.data.local.SelectedDomainStoreImpl
 import com.growthos.app.data.repository.DomainRepository
 import com.growthos.app.data.repository.ErrorTypeRepository
 import com.growthos.app.data.repository.ErrorTypeRepositoryImpl
+import com.growthos.app.data.repository.KnowledgeRepository
 import com.growthos.app.data.repository.PrincipleRepository
 import com.growthos.app.data.repository.SampleRepository
 import com.growthos.app.data.repository.TrainingRepository
@@ -30,17 +31,19 @@ class AppContainer(private val context: Context) {
     val sampleRepository: SampleRepository by lazy { SampleRepository(database.sampleDao()) }
     val trainingRepository: TrainingRepository by lazy { TrainingRepository(database.trainingDao()) }
     val principleRepository: PrincipleRepository by lazy { PrincipleRepository(database.principleDao()) }
+    val knowledgeRepository: KnowledgeRepository by lazy { KnowledgeRepository(database.knowledgeDao()) }
 
     val selectedDomainStore: SelectedDomainStore by lazy { SelectedDomainStoreImpl(context) }
 
-    /** 阶段 7 导出:聚合五 Repository 拉全量(R-013)。懒加载,首次导出才构造。 */
+    /** 阶段 7 导出:聚合六 Repository 拉全量(R-013)。懒加载,首次导出才构造。 */
     val dataExporter: DataExporter by lazy {
         DataExporterImpl(
             domainRepository = domainRepository,
             errorTypeRepository = errorTypeRepository,
             sampleRepository = sampleRepository,
             trainingRepository = trainingRepository,
-            principleRepository = principleRepository
+            principleRepository = principleRepository,
+            knowledgeRepository = knowledgeRepository
         )
     }
 }

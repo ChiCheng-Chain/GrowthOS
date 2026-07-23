@@ -2,6 +2,7 @@ package com.growthos.app.data.export
 
 import com.growthos.app.data.repository.DomainRepository
 import com.growthos.app.data.repository.ErrorTypeRepository
+import com.growthos.app.data.repository.KnowledgeRepository
 import com.growthos.app.data.repository.PrincipleRepository
 import com.growthos.app.data.repository.SampleRepository
 import com.growthos.app.data.repository.TrainingRepository
@@ -31,6 +32,7 @@ class DataExporterImpl(
     private val sampleRepository: SampleRepository,
     private val trainingRepository: TrainingRepository,
     private val principleRepository: PrincipleRepository,
+    private val knowledgeRepository: KnowledgeRepository,
     private val now: () -> Long = TimeUtil::nowMillis
 ) : DataExporter {
 
@@ -46,6 +48,7 @@ class DataExporterImpl(
             samples = sampleRepository.observeAll().first(),
             trainings = trainingRepository.observeAllWithNames().first().map { it.training },
             principles = principleRepository.observeAll().first(),
+            knowledges = knowledgeRepository.observeAll().first(),
             meta = ExportMeta(version = 1, exportedAt = now())
         )
         return json.encodeToString(ExportPayload.serializer(), payload)

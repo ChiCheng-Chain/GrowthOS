@@ -2,6 +2,7 @@ package com.growthos.app.data.local
 
 import androidx.room.TypeConverter
 import com.growthos.app.domain.model.Attribution
+import com.growthos.app.domain.model.KnowledgeType
 import com.growthos.app.domain.model.TrainingStatus
 
 /**
@@ -21,4 +22,10 @@ class Converters {
 
     @TypeConverter
     fun toTrainingStatus(value: String): TrainingStatus = TrainingStatus.valueOf(value)
+
+    @TypeConverter
+    fun fromKnowledgeType(value: KnowledgeType): String = value.name
+
+    @TypeConverter
+    fun toKnowledgeType(value: String): KnowledgeType = KnowledgeType.valueOf(value)
 }

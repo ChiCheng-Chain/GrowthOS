@@ -4,16 +4,19 @@ import androidx.test.core.app.ApplicationProvider
 import com.growthos.app.data.local.GrowthOSDatabase
 import com.growthos.app.data.local.entity.Domain
 import com.growthos.app.data.local.entity.ErrorType
+import com.growthos.app.data.local.entity.Knowledge
 import com.growthos.app.data.local.entity.Principle
 import com.growthos.app.data.local.entity.Sample
 import com.growthos.app.data.local.entity.Training
 import com.growthos.app.data.repository.DomainRepository
 import com.growthos.app.data.repository.ErrorTypeRepository
 import com.growthos.app.data.repository.ErrorTypeRepositoryImpl
+import com.growthos.app.data.repository.KnowledgeRepository
 import com.growthos.app.data.repository.PrincipleRepository
 import com.growthos.app.data.repository.SampleRepository
 import com.growthos.app.data.repository.TrainingRepository
 import com.growthos.app.domain.model.Attribution
+import com.growthos.app.domain.model.KnowledgeType
 import com.growthos.app.domain.model.TrainingStatus
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -52,6 +55,7 @@ class DataExporterTest {
             sampleRepository = SampleRepository(db.sampleDao()),
             trainingRepository = TrainingRepository(db.trainingDao()),
             principleRepository = PrincipleRepository(db.principleDao()),
+            knowledgeRepository = KnowledgeRepository(db.knowledgeDao()),
             now = { fixedNow }
         )
     }
@@ -73,6 +77,7 @@ class DataExporterTest {
         assertTrue(payload.samples.isEmpty())
         assertTrue(payload.trainings.isEmpty())
         assertTrue(payload.principles.isEmpty())
+        assertTrue(payload.knowledges.isEmpty())
         assertEquals(1, payload.meta.version)
         assertEquals(fixedNow, payload.meta.exportedAt)
     }
@@ -102,6 +107,12 @@ class DataExporterTest {
             Principle(
                 content = "边界先列清单", createdAt = 300L,
                 domainId = domainId, errorTypeId = errorTypeId, trainingId = trainingId, sampleId = sampleId
+            )
+        )
+        db.knowledgeDao().insert(
+            Knowledge(
+                content = "接杀要先回位", type = KnowledgeType.EXPERIENCE,
+                createdAt = 400L, domainId = domainId
             )
         )
 
@@ -139,6 +150,13 @@ class DataExporterTest {
         assertEquals("边界先列清单", p.content)
         assertEquals(domainId, p.domainId)
         assertEquals(trainingId, p.trainingId)
+
+        // Knowledge
+        assertEquals(1, payload.knowledges.size)
+        val k = payload.knowledges.first()
+        assertEquals("接杀要先回位", k.content)
+        assertEquals(KnowledgeType.EXPERIENCE, k.type)
+        assertEquals(domainId, k.domainId)
 
         assertEquals(1, payload.meta.version)
         assertEquals(fixedNow, payload.meta.exportedAt)

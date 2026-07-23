@@ -57,6 +57,7 @@ fun WeeklyScreen(
     onNavigateToTrainingList: () -> Unit = {},
     onNavigateToPrincipleList: () -> Unit = {},
     onNavigateToErrorTypes: () -> Unit = {},
+    onNavigateToKnowledge: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {}
 ) {
     val container = (LocalContext.current.applicationContext as GrowthOSApp).container
@@ -73,6 +74,7 @@ fun WeeklyScreen(
         onNavigateToTrainingList = onNavigateToTrainingList,
         onNavigateToPrincipleList = onNavigateToPrincipleList,
         onNavigateToErrorTypes = onNavigateToErrorTypes,
+        onNavigateToKnowledge = onNavigateToKnowledge,
         onNavigateToSettings = onNavigateToSettings
     )
 }
@@ -87,6 +89,7 @@ fun WeeklyContent(
     onNavigateToTrainingList: () -> Unit = {},
     onNavigateToPrincipleList: () -> Unit = {},
     onNavigateToErrorTypes: () -> Unit = {},
+    onNavigateToKnowledge: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {}
 ) {
     Column(
@@ -112,6 +115,7 @@ fun WeeklyContent(
             SubEntry("训练项", onNavigateToTrainingList)
             SubEntry("原则库", onNavigateToPrincipleList)
             SubEntry("错误类型", onNavigateToErrorTypes)
+            SubEntry("知识库", onNavigateToKnowledge)
             SubEntry("设置", onNavigateToSettings)
         }
 

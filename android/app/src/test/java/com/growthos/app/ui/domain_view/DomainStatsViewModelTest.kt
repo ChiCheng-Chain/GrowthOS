@@ -1,23 +1,28 @@
 package com.growthos.app.ui.domain_view
 
 import com.growthos.app.data.local.SelectedDomainStore
+import com.growthos.app.data.local.dao.KnowledgeDao
 import com.growthos.app.data.local.dao.PrincipleDao
 import com.growthos.app.data.local.dao.SampleDao
 import com.growthos.app.data.local.dao.TrainingDao
 import com.growthos.app.data.local.entity.Domain
 import com.growthos.app.data.local.entity.ErrorType
+import com.growthos.app.data.local.entity.Knowledge
 import com.growthos.app.data.local.entity.Principle
 import com.growthos.app.data.local.entity.Sample
 import com.growthos.app.data.local.entity.Training
 import com.growthos.app.data.local.relation.ControllableRatio
 import com.growthos.app.data.local.relation.ErrorTypeCount
+import com.growthos.app.data.local.relation.KnowledgeWithDomainName
 import com.growthos.app.data.local.relation.SampleWithErrorType
 import com.growthos.app.data.local.relation.TrainingEffectStats
 import com.growthos.app.data.local.relation.TrainingWithTypeName
+import com.growthos.app.data.repository.KnowledgeRepository
 import com.growthos.app.data.repository.PrincipleRepository
 import com.growthos.app.data.repository.SampleRepository
 import com.growthos.app.data.repository.TrainingRepository
 import com.growthos.app.domain.model.Attribution
+import com.growthos.app.domain.model.KnowledgeType
 import com.growthos.app.domain.model.TrainingStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -63,6 +68,7 @@ class DomainStatsViewModelTest {
         sampleRepository = SampleRepository(sampleDao),
         trainingRepository = TrainingRepository(trainingDao),
         principleRepository = PrincipleRepository(principleDao),
+        knowledgeRepository = KnowledgeRepository(FakeKnowledgeDao()),
         selectedStore = store
     )
 
@@ -384,4 +390,36 @@ private class FakePrincipleDao : PrincipleDao {
     // 阶段 6 原则列表新增查询,本 ViewModel 不调用 → 抛 NotImplementedError 占位。
     override fun observeAllWithNames(): Flow<List<com.growthos.app.data.local.relation.PrincipleWithNames>> =
         throw NotImplementedError()
+}
+
+/** 内存假 KnowledgeDao:DomainStatsViewModel 用到 observeByDomain,其余留空。 */
+internal class FakeKnowledgeDao : KnowledgeDao {
+    private val all = MutableStateFlow<List<Knowledge>>(emptyList())
+
+    override suspend fun insert(knowledge: Knowledge): Long {
+        all.update { it + knowledge }
+        return knowledge.id
+    }
+
+    override suspend fun update(knowledge: Knowledge) {
+        all.update { list -> list.map { if (it.id == knowledge.id) knowledge else it } }
+    }
+
+    override suspend fun delete(knowledge: Knowledge) {
+        all.update { list -> list.filterNot { it.id == knowledge.id } }
+    }
+
+    override fun observeAll(): Flow<List<Knowledge>> =
+        all.map { it.sortedByDescending { k -> k.createdAt } }
+
+    override fun observeByDomain(domainId: Long): Flow<List<Knowledge>> =
+        all.map { it.filter { k -> k.domainId == domainId }.sortedByDescending { k -> k.createdAt } }
+
+    override suspend fun getById(id: Long): Knowledge? = all.value.firstOrNull { it.id == id }
+
+    override fun observeAllWithDomainName(): Flow<List<KnowledgeWithDomainName>> =
+        all.map { list ->
+            list.sortedByDescending { it.createdAt }
+                .map { k -> KnowledgeWithDomainName(k, domainName = null) }
+        }
 }

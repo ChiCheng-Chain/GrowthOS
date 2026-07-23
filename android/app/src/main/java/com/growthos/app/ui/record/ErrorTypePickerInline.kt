@@ -1,8 +1,8 @@
 package com.growthos.app.ui.record
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,14 +14,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -92,8 +88,7 @@ fun ErrorTypePickerInline(
                     .padding(horizontal = 14.dp, vertical = 8.dp)
             )
         }
-        NewErrorTypeChip(onClick = onOpenDialog)
-    }
+        NewErrorTypeChip(onClick = onOpenDialog)    }
 
     if (isDialogOpen) {
         NewErrorTypeDialog(
@@ -105,21 +100,16 @@ fun ErrorTypePickerInline(
 
 @Composable
 private fun NewErrorTypeChip(onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        color = MaterialTheme.colorScheme.surface,
-        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Icon(Icons.Outlined.Add, contentDescription = "新建错误类型", modifier = Modifier.width(12.dp))
-            Text("新建", style = MaterialTheme.typography.labelLarge)
-        }
-    }
+    // 与错误类型 chip 同构(Text + background + padding),保证同行高度一致。
+    Text(
+        text = "+ 新建",
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier
+            .background(MaterialTheme.colorScheme.surface)
+            .clickable { onClick() }
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+    )
 }
 
 /**

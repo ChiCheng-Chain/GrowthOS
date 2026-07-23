@@ -1,8 +1,8 @@
 package com.growthos.app.ui.domain_view
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -154,7 +154,8 @@ fun DomainContent(
         if (domainState.isEmpty) {
             EmptyState(onOpenCreate = onOpenCreate)
         } else {
-            // 切换 chips:"切换"眉标与领域 chips + 新增按钮同处一行,基线对齐。
+            // 切换 chips:"切换"眉标与领域 chips + 新增按钮同处一行,同高对齐。
+            // Eyebrow 补 vertical padding 与 chips(labelLarge + 8dp)等高。
             FlowRow(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -162,7 +163,7 @@ fun DomainContent(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Eyebrow("切换")
+                Eyebrow("切换", modifier = Modifier.padding(vertical = 8.dp))
                 domainState.domains.forEach { domain ->
                     DomainChip(
                         name = domain.name,
@@ -437,21 +438,16 @@ private fun DomainChip(
 
 @Composable
 private fun NewDomainChip(onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        color = MaterialTheme.colorScheme.surface,
-        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Icon(Icons.Outlined.Add, contentDescription = "新建领域", modifier = Modifier.width(12.dp))
-            Text("新建", style = MaterialTheme.typography.labelLarge)
-        }
-    }
+    // 与 DomainChip 同构(Text + background + padding),保证同行高度一致。
+    Text(
+        text = "+ 新建",
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier
+            .background(MaterialTheme.colorScheme.surface)
+            .clickable { onClick() }
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+    )
 }
 
 @Composable

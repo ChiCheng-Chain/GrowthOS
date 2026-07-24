@@ -59,6 +59,7 @@ class PrincipleEditViewModel(
     private val principleId: Long?,              // null/非正=新建;正=编辑
     private val prefillTrainingId: Long?,        // 预填入口带入(D3,本阶段暂未建)
     private val prefillSampleId: Long?,          // 预填入口带入(D3,本阶段暂未建)
+    private val prefillDomainId: Long? = null,          // 领域页空状态新建入口带入
     private val now: () -> Long = TimeUtil::nowMillis
 ) : ViewModel() {
 
@@ -98,10 +99,11 @@ class PrincipleEditViewModel(
                 }
             }
         } else {
-            // 新建态:预填入口带入的训练项/样本(D3)
+            // 新建态:预填入口带入的训练项/样本/领域(D3)
             formState.value = PrincipleForm(
                 trainingId = prefillTrainingId,
-                sampleId = prefillSampleId
+                sampleId = prefillSampleId,
+                domainId = prefillDomainId?.takeIf { it > 0 }
             )
         }
     }
@@ -158,13 +160,14 @@ class PrincipleEditViewModel(
         private val errorTypeRepository: ErrorTypeRepository,
         private val principleId: Long?,
         private val prefillTrainingId: Long?,
-        private val prefillSampleId: Long?
+        private val prefillSampleId: Long?,
+        private val prefillDomainId: Long?
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
             PrincipleEditViewModel(
                 principleRepository, domainRepository, errorTypeRepository,
-                principleId, prefillTrainingId, prefillSampleId
+                principleId, prefillTrainingId, prefillSampleId, prefillDomainId
             ) as T
     }
 }

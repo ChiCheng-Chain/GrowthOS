@@ -50,6 +50,7 @@ class KnowledgeEditViewModel(
     private val knowledgeRepository: KnowledgeRepository,
     private val domainRepository: DomainRepository,
     private val knowledgeId: Long?,
+    private val prefillDomainId: Long? = null,
     private val now: () -> Long = TimeUtil::nowMillis
 ) : ViewModel() {
 
@@ -85,6 +86,9 @@ class KnowledgeEditViewModel(
                     )
                 }
             }
+        } else {
+            // 新建态:预填领域页空状态入口带入的领域
+            formState.value = KnowledgeForm(domainId = prefillDomainId?.takeIf { it > 0 })
         }
     }
 
@@ -125,10 +129,11 @@ class KnowledgeEditViewModel(
     class Factory(
         private val knowledgeRepository: KnowledgeRepository,
         private val domainRepository: DomainRepository,
-        private val knowledgeId: Long?
+        private val knowledgeId: Long?,
+        private val prefillDomainId: Long? = null
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            KnowledgeEditViewModel(knowledgeRepository, domainRepository, knowledgeId) as T
+            KnowledgeEditViewModel(knowledgeRepository, domainRepository, knowledgeId, prefillDomainId) as T
     }
 }

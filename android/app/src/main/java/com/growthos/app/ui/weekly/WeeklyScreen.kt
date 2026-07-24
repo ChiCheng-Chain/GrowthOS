@@ -1,6 +1,7 @@
 package com.growthos.app.ui.weekly
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -34,7 +35,6 @@ import com.growthos.app.data.local.relation.ControllableRatio
 import com.growthos.app.data.local.relation.ErrorTypeCount
 import com.growthos.app.data.local.relation.SampleWithErrorType
 import com.growthos.app.domain.model.Attribution
-import com.growthos.app.ui.components.Eyebrow
 import com.growthos.app.ui.components.LedgerMetric
 import com.growthos.app.ui.components.LedgerRule
 import com.growthos.app.ui.components.NextActionBlock
@@ -104,13 +104,13 @@ fun WeeklyContent(
         )
 
         // 阶段 5/6/7 + CRUD 补全:训练项 + 原则库 + 错误类型 + 设置入口。
-        // 浅底圆角小 tag,有功能实体感但弱色小字,不抢页面主视觉。
-        Row(
+        // 描边圆角小 tag,导航入口角色(与筛选 chips 区分)。FlowRow 允许窄屏换行。
+        FlowRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 2.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             SubEntry("训练项", onNavigateToTrainingList)
             SubEntry("原则库", onNavigateToPrincipleList)
@@ -175,7 +175,7 @@ fun WeeklyContent(
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Eyebrow("高频错误前三")
+            SectionTitle("高频错误前三")
             Spacer(Modifier.height(4.dp))
             if (state.topErrors.isEmpty()) {
                 EmptyHint("还没有样本")
@@ -226,7 +226,7 @@ fun WeeklyContent(
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Eyebrow("情绪强度最高")
+            SectionTitle("情绪强度最高")
             Spacer(Modifier.height(4.dp))
             val emo = state.highestEmotion
             if (emo == null) {
@@ -253,7 +253,7 @@ fun WeeklyContent(
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 16.dp)
         ) {
-            Eyebrow("建议关注")
+            SectionTitle("建议关注")
             Spacer(Modifier.height(10.dp))
             val suggested = state.suggestedError
             if (suggested == null) {
@@ -284,14 +284,20 @@ private fun formatRatio(ratio: ControllableRatio?): String =
 @Composable
 @OptIn(ExperimentalLayoutApi::class)
 private fun SelectorRow(label: String, chips: List<SelectorChip>) {
-    Row(
+    // 垂直结构:小标题独占一行(对齐领域页 SectionLabel 角色),chips 独占一行流式排列。
+    // 不再把 Eyebrow 与 chips 挤同一行——领域多时 chips 换行会让"两小字拖一大串"头轻脚重。
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(horizontal = 20.dp, vertical = 10.dp)
     ) {
-        Eyebrow(label)
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Spacer(Modifier.height(8.dp))
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -334,20 +340,32 @@ private fun EmptyHint(text: String) {
     )
 }
 
+/** 区块标题:13sp SemiBold + 主文本色,对齐领域页 SectionLabel,撑起分区层级。 */
+@Composable
+private fun SectionTitle(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.onBackground
+    )
+}
+
 /**
- * 周复盘页次级入口:浅底圆角小 tag,有功能实体感但仍是弱色小字,不抢主视觉。
- * 比纯文字更像可点击元素,同时不破坏账本式版面。
+ * 周复盘页次级入口:描边圆角小 tag。与筛选 chips(实底填充)区分角色——
+ * 导航入口用 outline 表示"可点进去",筛选项用实底表示"选中态"。
+ * 去掉等宽 mono,用 sans,避免和区块标题/元信息的字族撞车。
  */
 @Composable
 private fun SubEntry(text: String, onClick: () -> Unit) {
     Text(
         text = text,
-        style = MaterialTheme.typography.labelMedium,
+        style = MaterialTheme.typography.bodySmall,
+        fontWeight = FontWeight.Medium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        fontFamily = MonoFamily,
         modifier = Modifier
             .clip(RoundedCornerShape(6.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .border(0.5.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(6.dp))
             .clickable { onClick() }
             .padding(horizontal = 10.dp, vertical = 5.dp)
     )

@@ -59,6 +59,7 @@ fun PrincipleEditScreen(
     principleId: Long?,
     prefillTrainingId: Long? = null,
     prefillSampleId: Long? = null,
+    prefillDomainId: Long? = null,
     onBack: () -> Unit
 ) {
     val container = (LocalContext.current.applicationContext as GrowthOSApp).container
@@ -69,7 +70,8 @@ fun PrincipleEditScreen(
             container.errorTypeRepository,
             principleId,
             prefillTrainingId,
-            prefillSampleId
+            prefillSampleId,
+            prefillDomainId
         )
     )
     val state by vm.uiState.collectAsStateWithLifecycle()

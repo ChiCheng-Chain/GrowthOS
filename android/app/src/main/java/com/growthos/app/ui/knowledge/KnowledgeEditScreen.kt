@@ -56,6 +56,7 @@ import com.growthos.app.ui.theme.GrowthOSTheme
 @Composable
 fun KnowledgeEditScreen(
     knowledgeId: Long?,
+    prefillDomainId: Long? = null,
     onBack: () -> Unit
 ) {
     val container = (LocalContext.current.applicationContext as GrowthOSApp).container
@@ -63,7 +64,8 @@ fun KnowledgeEditScreen(
         factory = KnowledgeEditViewModel.Factory(
             container.knowledgeRepository,
             container.domainRepository,
-            knowledgeId
+            knowledgeId,
+            prefillDomainId
         )
     )
     val state by vm.uiState.collectAsStateWithLifecycle()

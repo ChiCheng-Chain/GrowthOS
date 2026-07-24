@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
@@ -28,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -69,7 +71,11 @@ fun DomainScreen(
     onOpenSample: (Long) -> Unit = {},
     onNavigateToEffect: (Long) -> Unit = {},
     onNavigateToPrincipleEdit: (Long) -> Unit = {},
-    onNavigateToKnowledgeEdit: (Long) -> Unit = {}
+    onNavigateToKnowledgeEdit: (Long) -> Unit = {},
+    onNavigateToCreateTraining: (Long) -> Unit = {},
+    onNavigateToCreatePrinciple: (Long) -> Unit = {},
+    onNavigateToCreateKnowledge: (Long) -> Unit = {},
+    onNavigateToSampleList: (Long) -> Unit = {}
 ) {
     val container = (LocalContext.current.applicationContext as GrowthOSApp).container
     val domainVm: DomainViewModel = viewModel(
@@ -114,6 +120,10 @@ fun DomainScreen(
         onNavigateToEffect = onNavigateToEffect,
         onNavigateToPrincipleEdit = onNavigateToPrincipleEdit,
         onNavigateToKnowledgeEdit = onNavigateToKnowledgeEdit,
+        onNavigateToCreateTraining = onNavigateToCreateTraining,
+        onNavigateToCreatePrinciple = onNavigateToCreatePrinciple,
+        onNavigateToCreateKnowledge = onNavigateToCreateKnowledge,
+        onNavigateToSampleList = onNavigateToSampleList,
         onFilterErrorType = { id ->
             statsVm.filterByErrorType(id)
             scope.launch { scrollState.animateScrollTo(scrollState.maxValue) }
@@ -140,6 +150,10 @@ fun DomainContent(
     onNavigateToEffect: (Long) -> Unit,
     onNavigateToPrincipleEdit: (Long) -> Unit,
     onNavigateToKnowledgeEdit: (Long) -> Unit,
+    onNavigateToCreateTraining: (Long) -> Unit,
+    onNavigateToCreatePrinciple: (Long) -> Unit,
+    onNavigateToCreateKnowledge: (Long) -> Unit,
+    onNavigateToSampleList: (Long) -> Unit,
     onFilterErrorType: (Long?) -> Unit,
     onFilterAttribution: (Attribution?) -> Unit,
     onClearFilter: () -> Unit
@@ -195,16 +209,37 @@ fun DomainContent(
 
         // 四区块(仅有选中领域时展示)
         if (domainState.selectedDomain != null) {
-            // F1 最近样本
-            SectionLabel("最近样本")
-            if (statsState.recentSamples.isEmpty()) {
-                EmptyHint("还没有样本,去记录一条")
+            // F1 样本(合并原"最近样本"+"样本列表"):筛选条上提 + 预览 + 查看全部入口。
+            // 预览封顶 SAMPLE_PREVIEW_LIMIT 条,全量进独立列表页 onNavigateToSampleList。
+            SectionLabel("样本")
+            SampleFilterBar(
+                availableErrorTypes = statsState.availableErrorTypes,
+                filter = statsState.filter,
+                onErrorTypeSelect = onFilterErrorType,
+                onAttributionSelect = onFilterAttribution,
+                modifier = Modifier.padding(vertical = 4.dp)
+            )
+            LedgerRule(modifier = Modifier.padding(top = 4.dp))
+            if (statsState.filteredSamples.isEmpty()) {
+                EmptyHint(
+                    if (statsState.filter.errorTypeId == null && statsState.filter.attribution == null)
+                        "还没有样本,去记录一条"
+                    else "没有符合条件的样本"
+                )
             } else {
-                statsState.recentSamples.forEach { row ->
+                statsState.filteredSamples.take(SAMPLE_PREVIEW_LIMIT).forEach { row ->
                     SampleStatRow(row = row, onClick = { onOpenSample(row.sample.id) })
                 }
+                if (statsState.filteredSamples.size > SAMPLE_PREVIEW_LIMIT) {
+                    ViewAllEntry(
+                        count = statsState.filteredSamples.size,
+                        onClick = {
+                            domainState.selectedId?.let { onNavigateToSampleList(it) }
+                        }
+                    )
+                }
             }
-            LedgerRule(modifier = Modifier.padding(top = 8.dp))
+            LedgerRule()
 
             // F2 错误类型分布(点条触发筛选 → 设计 D5)
             SectionLabel("错误类型分布")
@@ -228,7 +263,9 @@ fun DomainContent(
             // F3 当前训练项
             SectionLabel("当前训练项")
             if (statsState.inProgressTrainings.isEmpty()) {
-                EmptyHint("还没有训练项(阶段 5 可建)")
+                EmptyActionHint("点击新建训练项") {
+                    domainState.selectedId?.let { onNavigateToCreateTraining(it) }
+                }
             } else {
                 statsState.inProgressTrainings.forEach { t ->
                     Surface(
@@ -248,7 +285,9 @@ fun DomainContent(
             // F4 近期原则(阶段 6:可点进编辑,D4)
             SectionLabel("近期原则")
             if (statsState.recentPrinciples.isEmpty()) {
-                EmptyHint("还没有原则,去原则库新建")
+                EmptyActionHint("点击新建原则") {
+                    domainState.selectedId?.let { onNavigateToCreatePrinciple(it) }
+                }
             } else {
                 statsState.recentPrinciples.forEach { p ->
                     PrincipleRow(p) { onNavigateToPrincipleEdit(p.id) }
@@ -259,33 +298,12 @@ fun DomainContent(
             // 近期知识(外部摄取:经验/待办,可点进编辑)
             SectionLabel("近期知识")
             if (statsState.recentKnowledges.isEmpty()) {
-                EmptyHint("还没有知识,去知识库新建")
+                EmptyActionHint("点击新建知识") {
+                    domainState.selectedId?.let { onNavigateToCreateKnowledge(it) }
+                }
             } else {
                 statsState.recentKnowledges.forEach { k ->
                     KnowledgeMiniRow(k) { onNavigateToKnowledgeEdit(k.id) }
-                }
-            }
-            LedgerRule()
-
-            // F5 筛选条 + 样本列表
-            SectionLabel("样本列表")
-            SampleFilterBar(
-                availableErrorTypes = statsState.availableErrorTypes,
-                filter = statsState.filter,
-                onErrorTypeSelect = onFilterErrorType,
-                onAttributionSelect = onFilterAttribution,
-                modifier = Modifier.padding(vertical = 4.dp)
-            )
-            LedgerRule(modifier = Modifier.padding(top = 8.dp))
-            if (statsState.filteredSamples.isEmpty()) {
-                EmptyHint(
-                    if (statsState.filter.errorTypeId == null && statsState.filter.attribution == null)
-                        "还没有样本"
-                    else "没有符合条件的样本"
-                )
-            } else {
-                statsState.filteredSamples.forEach { row ->
-                    SampleStatRow(row = row, onClick = { onOpenSample(row.sample.id) })
                 }
             }
             LedgerRule()
@@ -327,13 +345,13 @@ private fun SampleStatRow(row: SampleWithErrorType, onClick: () -> Unit) {
             ) {
                 Text(
                     formatTime(row.sample.recordedAt),
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontFamily = MonoFamily
                 )
                 Text(
                     "${row.errorTypeName} · ${row.sample.attribution.label}",
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -369,9 +387,8 @@ private fun PrincipleRow(principle: Principle, onClick: () -> Unit) {
             Spacer(Modifier.height(4.dp))
             Text(
                 formatDate(principle.createdAt),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontFamily = MonoFamily
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -395,17 +412,21 @@ private fun KnowledgeMiniRow(knowledge: Knowledge, onClick: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // 类型做成浅底圆角小 tag,跟日期拉开角色差(语义标签 vs 元信息)
                 Text(
                     knowledge.type.label,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.primary,
-                    fontFamily = MonoFamily
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
                 )
                 Text(
                     formatDate(knowledge.createdAt),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontFamily = MonoFamily
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             Spacer(Modifier.height(4.dp))
@@ -468,6 +489,48 @@ private fun EmptyHint(text: String) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp)
     )
+}
+
+/**
+ * 可点击的空状态:列表为空时提示"点击新建",强调色 + 圆角浅底,
+ * 引导用户直接跳到对应新建页。与 [EmptyHint] 同布局,但带点击与视觉引导。
+ */
+@Composable
+private fun EmptyActionHint(text: String, onClick: () -> Unit) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier
+            .padding(horizontal = 20.dp, vertical = 10.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+    )
+}
+
+/**
+ * "查看全部 N 条"入口:预览封顶后提示还有更多,点击进独立全量列表页。
+ * 视觉与 [EmptyActionHint] 同构(琥珀色 + 圆角浅底 + 可点击),右对齐收尾。
+ */
+@Composable
+private fun ViewAllEntry(count: Int, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.End
+    ) {
+        Text(
+            text = "查看全部 $count 条 →",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .clickable(onClick = onClick)
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+        )
+    }
 }
 
 @Composable
@@ -574,15 +637,21 @@ private fun HiddenChip(
 
 @Composable
 private fun SectionLabel(text: String) {
-    Column(
+    // 区块标题:13sp SemiBold + 主文本色,撑起分区层级。
+    // 不再用 Eyebrow(11sp 弱色等宽)——那套适合做章节眉标,撑不起分区标题的角色。
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.onBackground,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 16.dp)
-    ) {
-        Eyebrow(text)
-        Spacer(Modifier.height(10.dp))
-    }
+            .padding(horizontal = 20.dp, vertical = 20.dp)
+    )
 }
+
+// 领域页样本区块预览封顶;超过则展示"查看全部"入口,全量进独立列表页。
+private const val SAMPLE_PREVIEW_LIMIT = 10
 
 private val timeFmt = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
 private val dateFmt = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -643,6 +712,8 @@ private fun DomainContentPreview() {
             onSave = { _, _ -> }, onUnhide = {}, onDismissDialog = {},
             onOpenSample = {}, onNavigateToEffect = {}, onNavigateToPrincipleEdit = {},
             onNavigateToKnowledgeEdit = {},
+            onNavigateToCreateTraining = {}, onNavigateToCreatePrinciple = {}, onNavigateToCreateKnowledge = {},
+            onNavigateToSampleList = {},
             onFilterErrorType = {}, onFilterAttribution = {},
             onClearFilter = {}
         )

@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import com.growthos.app.ui.domain_view.DomainScreen
 import com.growthos.app.ui.record.RecordScreen
 import com.growthos.app.ui.record.SampleEditScreen
+import com.growthos.app.ui.sample_list.SampleListScreen
 import com.growthos.app.ui.error_type.ErrorTypeListScreen
 import com.growthos.app.ui.knowledge.KnowledgeEditScreen
 import com.growthos.app.ui.knowledge.KnowledgeListScreen
@@ -67,6 +68,10 @@ private object Routes {
         if (sampleId != null && sampleId > 0) "sample_edit?sampleId=$sampleId"
         else "sample_edit"
 
+    // 样本全量列表(按领域)
+    const val SAMPLE_LIST_WITH_DOMAIN = "sample_list?domainId={domainId}"
+    fun sampleList(domainId: Long): String = "sample_list?domainId=$domainId"
+
     // 阶段 5 训练项
     const val TRAINING_LIST = "training_list"
     const val TRAINING_EDIT = "training_edit"
@@ -80,12 +85,18 @@ private object Routes {
     // 阶段 6 原则
     const val PRINCIPLE_LIST = "principle_list"
     const val PRINCIPLE_EDIT = "principle_edit"
-    const val PRINCIPLE_EDIT_WITH_ID = "principle_edit?principleId={principleId}&trainingId={trainingId}&sampleId={sampleId}"
-    fun principleEdit(principleId: Long? = null, trainingId: Long? = null, sampleId: Long? = null): String {
+    const val PRINCIPLE_EDIT_WITH_ID = "principle_edit?principleId={principleId}&trainingId={trainingId}&sampleId={sampleId}&domainId={domainId}"
+    fun principleEdit(
+        principleId: Long? = null,
+        trainingId: Long? = null,
+        sampleId: Long? = null,
+        domainId: Long? = null
+    ): String {
         val pid = principleId?.takeIf { it > 0 } ?: -1L
         val tid = trainingId?.takeIf { it > 0 } ?: -1L
         val sid = sampleId?.takeIf { it > 0 } ?: -1L
-        return "principle_edit?principleId=$pid&trainingId=$tid&sampleId=$sid"
+        val did = domainId?.takeIf { it > 0 } ?: -1L
+        return "principle_edit?principleId=$pid&trainingId=$tid&sampleId=$sid&domainId=$did"
     }
 
     // 阶段 7 设置
@@ -97,10 +108,11 @@ private object Routes {
     // 知识库
     const val KNOWLEDGE_LIST = "knowledge_list"
     const val KNOWLEDGE_EDIT = "knowledge_edit"
-    const val KNOWLEDGE_EDIT_WITH_ID = "knowledge_edit?knowledgeId={knowledgeId}"
-    fun knowledgeEdit(knowledgeId: Long? = null): String {
+    const val KNOWLEDGE_EDIT_WITH_ID = "knowledge_edit?knowledgeId={knowledgeId}&domainId={domainId}"
+    fun knowledgeEdit(knowledgeId: Long? = null, domainId: Long? = null): String {
         val kid = knowledgeId?.takeIf { it > 0 } ?: -1L
-        return "knowledge_edit?knowledgeId=$kid"
+        val did = domainId?.takeIf { it > 0 } ?: -1L
+        return "knowledge_edit?knowledgeId=$kid&domainId=$did"
     }
 }
 
@@ -157,6 +169,18 @@ fun GrowthOSApp() {
                     },
                     onNavigateToKnowledgeEdit = { knowledgeId ->
                         navController.navigate(Routes.knowledgeEdit(knowledgeId))
+                    },
+                    onNavigateToCreateTraining = { domainId ->
+                        navController.navigate(Routes.trainingEdit())
+                    },
+                    onNavigateToCreatePrinciple = { domainId ->
+                        navController.navigate(Routes.principleEdit(domainId = domainId))
+                    },
+                    onNavigateToCreateKnowledge = { domainId ->
+                        navController.navigate(Routes.knowledgeEdit(domainId = domainId))
+                    },
+                    onNavigateToSampleList = { domainId ->
+                        navController.navigate(Routes.sampleList(domainId))
                     }
                 )
             }
@@ -201,6 +225,23 @@ fun GrowthOSApp() {
                             launchSingleTop = true
                             restoreState = true
                         }
+                    }
+                )
+            }
+            composable(
+                route = Routes.SAMPLE_LIST_WITH_DOMAIN,
+                arguments = listOf(
+                    navArgument("domainId") {
+                        type = NavType.LongType
+                    }
+                )
+            ) { backStackEntry ->
+                val domainId = backStackEntry.arguments?.getLong("domainId") ?: 0L
+                SampleListScreen(
+                    domainId = domainId,
+                    onBack = { navController.popBackStack() },
+                    onOpenSample = { sampleId ->
+                        navController.navigate(Routes.sampleEdit(sampleId))
                     }
                 )
             }
@@ -270,16 +311,22 @@ fun GrowthOSApp() {
                     navArgument("sampleId") {
                         type = NavType.LongType
                         defaultValue = -1L
+                    },
+                    navArgument("domainId") {
+                        type = NavType.LongType
+                        defaultValue = -1L
                     }
                 )
             ) { backStackEntry ->
                 val principleId = backStackEntry.arguments?.getLong("principleId") ?: -1L
                 val trainingId = backStackEntry.arguments?.getLong("trainingId") ?: -1L
                 val sampleId = backStackEntry.arguments?.getLong("sampleId") ?: -1L
+                val domainId = backStackEntry.arguments?.getLong("domainId") ?: -1L
                 PrincipleEditScreen(
                     principleId = principleId.takeIf { it > 0 },
                     prefillTrainingId = trainingId.takeIf { it > 0 },
                     prefillSampleId = sampleId.takeIf { it > 0 },
+                    prefillDomainId = domainId.takeIf { it > 0 },
                     onBack = { navController.popBackStack() }
                 )
             }
@@ -310,12 +357,18 @@ fun GrowthOSApp() {
                     navArgument("knowledgeId") {
                         type = NavType.LongType
                         defaultValue = -1L
+                    },
+                    navArgument("domainId") {
+                        type = NavType.LongType
+                        defaultValue = -1L
                     }
                 )
             ) { backStackEntry ->
                 val knowledgeId = backStackEntry.arguments?.getLong("knowledgeId") ?: -1L
+                val domainId = backStackEntry.arguments?.getLong("domainId") ?: -1L
                 KnowledgeEditScreen(
                     knowledgeId = knowledgeId.takeIf { it > 0 },
+                    prefillDomainId = domainId.takeIf { it > 0 },
                     onBack = { navController.popBackStack() }
                 )
             }

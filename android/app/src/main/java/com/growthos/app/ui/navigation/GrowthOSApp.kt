@@ -1,5 +1,9 @@
 package com.growthos.app.ui.navigation
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -120,10 +124,18 @@ fun GrowthOSApp() {
             }
         }
     ) { innerPadding ->
+        // 统一淡入淡出转场:消除默认 slide+fade 带来的横向位移"晃眼"感,
+        // Tab 切换与子页跳转都走纯 alpha 过渡,时长与缓动贴近 M3 推荐值。
+        val durationMs = 220
+        val fadeSpec = tween<Float>(durationMs, easing = FastOutSlowInEasing)
         NavHost(
             navController = navController,
             startDestination = Tab.Record.route,
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.padding(innerPadding),
+            enterTransition = { fadeIn(fadeSpec) },
+            exitTransition = { fadeOut(fadeSpec) },
+            popEnterTransition = { fadeIn(fadeSpec) },
+            popExitTransition = { fadeOut(fadeSpec) }
         ) {
             composable(Tab.Record.route) {
                 RecordScreen(

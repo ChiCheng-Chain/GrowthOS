@@ -66,7 +66,7 @@ object DemoSeed {
             val exec = typeId("执行变形")
             val tilt = typeId("压力下急躁")
 
-            // 样本:编程 6 条 / 战旗 5 条 / 拳击 3 条,跨 0~28 天
+            // 样本:编程 6 / 战旗 5 / 拳击 3 老数据 + 加密批(跨 0~29 天,让预览收敛/查看全部/筛选有戏可看)
             data class Row(val d: Long, val e: Long, val a: Attribution, val emo: Int?, val r: String, val rev: String)
             val rows = listOf(
                 Row(coding, boundary, Attribution.CONTROLLABLE, 4, "退款金额为 0 的分支直接崩了,影响 12 笔订单", "金额为 0 的分支要先进状态表"),
@@ -82,7 +82,30 @@ object DemoSeed {
                 Row(chess, greed, Attribution.CONTROLLABLE, 2, "经济领先时乱花,决赛圈差 1 块钱", "决赛前留 2 金保底"),
                 Row(boxing, exec, Attribution.CONTROLLABLE, 4, "实战中直拳变形,被连续反击命中", "每周固定打靶 200 次"),
                 Row(boxing, tilt, Attribution.CONTROLLABLE, 3, "被压到围角就乱抡,体力掉光", "贴墙先抱缠"),
-                Row(boxing, exec, Attribution.ENVIRONMENT, null, "新手局节奏不适应,回合间休息不够", "赛前跳绳练 3 轮")
+                Row(boxing, exec, Attribution.ENVIRONMENT, null, "新手局节奏不适应,回合间休息不够", "赛前跳绳练 3 轮"),
+                // —— 加密批:编程 9 条(触发预览 5+全部入口) ——
+                Row(coding, boundary, Attribution.CONTROLLABLE, 3, "分页拉取漏了空页判断,列表尾部重复 20 条", "分页终止条件先进用例"),
+                Row(coding, rush, Attribution.OPPONENT_EXTERNAL, 2, "依赖方临时改协议没通知,联调又白跑", "关键依赖每天对一次口径"),
+                Row(coding, boundary, Attribution.CONTROLLABLE, 4, "时区转换漏了夏令时,海外用户日历偏 1 小时", "时间用例覆盖 UTC+8 外时区"),
+                Row(coding, tilt, Attribution.CONTROLLABLE, 5, "评审被质疑当场急了,语气失控", "被质疑先复述对方问题"),
+                Row(coding, judge, Attribution.CONTROLLABLE, 3, "低估了数据量,方案上线三天就撑不住", "方案前先算量级"),
+                Row(coding, exec, Attribution.UNCONTROLLABLE, null, "感冒状态差,code review 漏了明显问题", "状态差只做低风险改动"),
+                Row(coding, boundary, Attribution.CONTROLLABLE, 2, "并发下计数器没加锁,统计少了 30%", "共享可变状态先想并发"),
+                Row(coding, rush, Attribution.CONTROLLABLE, 3, "没跑全量测试就发布,回归挂了两条", "发布前 CI 必须绿"),
+                Row(coding, judge, Attribution.ENVIRONMENT, null, "第三方 SDK 升级破坏兼容,夜间崩溃上涨", "升级先看 changelog"),
+                // —— 加密批:战旗 6 条 ——
+                Row(chess, greed, Attribution.CONTROLLABLE, 4, "优势局追三连鸡,贪节奏被第五抬走", "优势先稳排名"),
+                Row(chess, judge, Attribution.CONTROLLABLE, 2, "错估酒馆刷新概率,白丢 5 金", "刷新期望先背熟"),
+                Row(chess, tilt, Attribution.CONTROLLABLE, 5, "被连胜嘲讽后上头换阵容,直接第八", "关掉对面表情"),
+                Row(chess, greed, Attribution.CONTROLLABLE, 3, "决赛圈舍不得卖核心卡,差一步吃鸡", "阵容服务于名次"),
+                Row(chess, rush, Attribution.UNCONTROLLABLE, null, "排队期间没想好开局路线,前 5 回合乱拿", "排队时定开局"),
+                Row(chess, judge, Attribution.OPPONENT_EXTERNAL, null, "决赛对手天胡开局,非战之罪", "非战之罪不复盘"),
+                // —— 加密批:拳击 5 条 ——
+                Row(boxing, exec, Attribution.CONTROLLABLE, 4, "刺拳距离感又丢了,整场够不着人", "每周加 2 轮距离感步法"),
+                Row(boxing, tilt, Attribution.CONTROLLABLE, 4, "挨了一记重拳后想立刻还手,露了破绽", "挨拳先抱缠一回合"),
+                Row(boxing, exec, Attribution.CONTROLLABLE, 2, "组合拳第三下习惯性收手,打不出连击", "空击每天 3 组×10"),
+                Row(boxing, judge, Attribution.CONTROLLABLE, 3, "实战全程没观察对手习惯,被动挨打", "第一回合只做观察"),
+                Row(boxing, tilt, Attribution.ENVIRONMENT, null, "护具不合适磨破眉骨,训练中断", "自备护具")
             )
             rows.forEachIndexed { i, row ->
                 sampleRepo.insert(
@@ -117,8 +140,23 @@ object DemoSeed {
                     endedAt = daysAgo(8.0), status = TrainingStatus.COMPLETED, note = "已完成两周"
                 )
             )
+            // 加密批:拳击 1 个进行中(让该领域有训练卡内容) + 编程 1 个已放弃(三状态齐)
+            trainingRepo.create(
+                Training(
+                    domainId = boxing, errorTypeId = tilt, goal = "挨拳后先抱缠一回合再组织反击",
+                    acceptanceCriteria = "实战连续 3 场不出现上头换血", startedAt = daysAgo(4.0),
+                    endedAt = null, status = TrainingStatus.IN_PROGRESS, note = null
+                )
+            )
+            trainingRepo.create(
+                Training(
+                    domainId = coding, errorTypeId = judge, goal = "所有方案先算数据量级再评审",
+                    acceptanceCriteria = "方案文档附量级估算", startedAt = daysAgo(26.0),
+                    endedAt = daysAgo(15.0), status = TrainingStatus.ABANDONED, note = "被流程性工具替代"
+                )
+            )
 
-            // 原则
+            // 原则(共 8 条:编程 4 / 战旗 2 / 拳击 2,触发预览 3+全部入口)
             principleRepo.insert(
                 Principle(content = "边界先列清单再动手——枚举比回忆可靠", createdAt = daysAgo(9.0), domainId = coding, errorTypeId = boundary)
             )
@@ -128,8 +166,23 @@ object DemoSeed {
             principleRepo.insert(
                 Principle(content = "情绪上头时做的决定几乎全是错的,先暂停 10 秒", createdAt = daysAgo(3.0), domainId = boxing, errorTypeId = tilt)
             )
+            principleRepo.insert(
+                Principle(content = "动手之前先读完整篇文档,半知半解写出来全是坑", createdAt = daysAgo(7.5), domainId = coding, errorTypeId = rush)
+            )
+            principleRepo.insert(
+                Principle(content = "被质疑时先复述对方的问题,而不是急着辩解", createdAt = daysAgo(6.0), domainId = coding, errorTypeId = tilt)
+            )
+            principleRepo.insert(
+                Principle(content = "优势局只做不亏的决策,排名优先于吃鸡", createdAt = daysAgo(4.0), domainId = chess, errorTypeId = greed)
+            )
+            principleRepo.insert(
+                Principle(content = "第一回合只观察不出力,信息比先手值钱", createdAt = daysAgo(2.5), domainId = boxing, errorTypeId = judge)
+            )
+            principleRepo.insert(
+                Principle(content = "共享可变状态先想并发,加锁或改不可变", createdAt = daysAgo(1.5), domainId = coding, errorTypeId = boundary)
+            )
 
-            // 知识(外部摄取)
+            // 知识(外部摄取,共 9 条:编程 4 / 战旗 3 / 拳击 2,触发预览 3+全部入口)
             knowledgeRepo.insert(
                 Knowledge(content = "《清单革命》:复杂任务先建 checklist 再执行", type = KnowledgeType.EXPERIENCE, createdAt = daysAgo(7.0), domainId = coding)
             )
@@ -138,6 +191,24 @@ object DemoSeed {
             )
             knowledgeRepo.insert(
                 Knowledge(content = "看一期拳王防守反击的技术拆解视频", type = KnowledgeType.TODO, createdAt = daysAgo(2.0), domainId = boxing)
+            )
+            knowledgeRepo.insert(
+                Knowledge(content = "《系统化思维》:先画因果回路再下结论", type = KnowledgeType.EXPERIENCE, createdAt = daysAgo(6.0), domainId = coding)
+            )
+            knowledgeRepo.insert(
+                Knowledge(content = "整理时区/夏令时测试用例模板,沉淀给组内", type = KnowledgeType.TODO, createdAt = daysAgo(5.0), domainId = coding)
+            )
+            knowledgeRepo.insert(
+                Knowledge(content = "酒馆更新公告:酒馆刷新概率上调 2%,打法要变", type = KnowledgeType.EXPERIENCE, createdAt = daysAgo(3.5), domainId = chess)
+            )
+            knowledgeRepo.insert(
+                Knowledge(content = "找一部职业比赛第一视角,观察对手习惯的观察点", type = KnowledgeType.TODO, createdAt = daysAgo(3.0), domainId = chess)
+            )
+            knowledgeRepo.insert(
+                Knowledge(content = "《丹·哈迪拳击教学》:距离感的步法练习章节", type = KnowledgeType.EXPERIENCE, createdAt = daysAgo(2.5), domainId = boxing)
+            )
+            knowledgeRepo.insert(
+                Knowledge(content = "约一次轻实战,专门练第一回合纯观察", type = KnowledgeType.TODO, createdAt = daysAgo(1.0), domainId = boxing)
             )
         }
     }

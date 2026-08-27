@@ -253,13 +253,13 @@ internal class TodayListViewModel(repository: SampleRepository) : ViewModel() {
 private val previewSamples = listOf(
     Sample(
         id = 1, domainId = 1, recordedAt = System.currentTimeMillis(),
-        result = "线上 bug,影响部分退款订单", description = "未处理退款中状态",
+        result = "线上 bug,影响部分退款订单",
         errorTypeId = 1, attribution = com.growthos.app.domain.model.Attribution.CONTROLLABLE,
         emotionIntensity = 4, review = "退款金额为 0 的分支要单独测一遍"
     ),
     Sample(
         id = 2, domainId = 2, recordedAt = System.currentTimeMillis() - 3600_000,
-        result = "第 7 名 / 8 人", description = "锁血局追第一翻车",
+        result = "第 7 名 / 8 人",
         errorTypeId = 2, attribution = com.growthos.app.domain.model.Attribution.CONTROLLABLE,
         emotionIntensity = 3, review = "锁血局优先保前四,不追第一"
     )

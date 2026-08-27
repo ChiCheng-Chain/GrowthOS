@@ -180,7 +180,7 @@ internal fun makeSample(
     time: Long,
     emotion: Int? = null
 ) = Sample(
-    domainId = domainId, recordedAt = time, result = "结果", description = "描述",
+    domainId = domainId, recordedAt = time, result = "结果",
     errorTypeId = errorTypeId, attribution = attribution, emotionIntensity = emotion, review = "复盘"
 )
 

@@ -95,7 +95,7 @@ class SampleViewModelTest {
 
         vm.updateResult("结果")
         advanceUntilIdle()
-        assertFalse(vm.uiState.value.form.isValid) // 仍缺描述/错误类型/归因/复盘/领域
+        assertFalse(vm.uiState.value.form.isValid) // 仍缺错误类型/归因/复盘/领域
     }
 
     @Test
@@ -110,8 +110,7 @@ class SampleViewModelTest {
 
         // 领域默认选中(见下一用例),这里显式补全其余
         vm.updateDomain(1L)
-        vm.updateResult("线上 bug")
-        vm.updateDescription("退款分支没处理")
+        vm.updateResult("线上 bug,退款分支没处理")
         vm.updateErrorType(1L)
         vm.updateAttribution(Attribution.CONTROLLABLE)
         vm.updateReview("下次先列状态表")
@@ -163,7 +162,7 @@ class SampleViewModelTest {
         seedErrorTypes(errorTypeDao, "边界条件遗漏")
         val existingId = sampleDao.insert(
             Sample(
-                domainId = 1L, recordedAt = 1000L, result = "旧结果", description = "旧描述",
+                domainId = 1L, recordedAt = 1000L, result = "旧结果",
                 errorTypeId = 1L, attribution = Attribution.UNCONTROLLABLE,
                 emotionIntensity = null, review = "旧复盘"
             )
@@ -189,7 +188,7 @@ class SampleViewModelTest {
         val originalTime = 1000L
         val existingId = sampleDao.insert(
             Sample(
-                domainId = 1L, recordedAt = originalTime, result = "旧结果", description = "旧描述",
+                domainId = 1L, recordedAt = originalTime, result = "旧结果",
                 errorTypeId = 1L, attribution = Attribution.UNCONTROLLABLE,
                 emotionIntensity = null, review = "旧复盘"
             )
@@ -263,7 +262,7 @@ class SampleViewModelTest {
         seedErrorTypes(errorTypeDao, "边界条件遗漏")
         val existingId = sampleDao.insert(
             Sample(
-                domainId = 1L, recordedAt = 1000L, result = "结果", description = "描述",
+                domainId = 1L, recordedAt = 1000L, result = "结果",
                 errorTypeId = 1L, attribution = Attribution.CONTROLLABLE,
                 emotionIntensity = null, review = "复盘"
             )
@@ -377,8 +376,7 @@ class SampleViewModelTest {
 
     private fun fillValidForm(vm: SampleViewModel) {
         vm.updateDomain(1L)
-        vm.updateResult("线上 bug")
-        vm.updateDescription("退款分支没处理")
+        vm.updateResult("线上 bug,退款分支没处理")
         vm.updateErrorType(1L)
         vm.updateAttribution(Attribution.CONTROLLABLE)
         vm.updateEmotion(4)

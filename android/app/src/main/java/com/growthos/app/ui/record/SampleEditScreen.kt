@@ -104,7 +104,6 @@ fun SampleEditScreen(
         state = state,
         onUpdateDomain = vm::updateDomain,
         onUpdateResult = vm::updateResult,
-        onUpdateDescription = vm::updateDescription,
         onUpdateErrorType = vm::updateErrorType,
         onUpdateAttribution = vm::updateAttribution,
         onUpdateEmotion = vm::updateEmotion,
@@ -133,7 +132,6 @@ private fun SampleEditContent(
     state: SampleEditUiState,
     onUpdateDomain: (Long) -> Unit,
     onUpdateResult: (String) -> Unit,
-    onUpdateDescription: (String) -> Unit,
     onUpdateErrorType: (Long) -> Unit,
     onUpdateAttribution: (Attribution) -> Unit,
     onUpdateEmotion: (Int) -> Unit,
@@ -209,27 +207,17 @@ private fun SampleEditContent(
             }
             LedgerRule(modifier = Modifier.padding(top = 12.dp))
 
-            // 2. 结果
+            // 2. 结果(宽语义:发生了什么+造成什么后果,原「一句话描述」已合并)
             FieldLabel("结果")
             FormTextField(
                 value = form.result,
                 onValueChange = onUpdateResult,
-                placeholder = "这次造成了什么后果或反馈",
+                placeholder = "发生了什么",
                 singleLine = true
             )
             LedgerRule(modifier = Modifier.padding(top = 12.dp))
 
-            // 3. 一句话描述
-            FieldLabel("一句话描述")
-            FormTextField(
-                value = form.description,
-                onValueChange = onUpdateDescription,
-                placeholder = "发生了什么",
-                singleLine = false
-            )
-            LedgerRule(modifier = Modifier.padding(top = 12.dp))
-
-            // 4. 错误类型(内联 + 新建)
+            // 3. 错误类型(内联 + 新建)
             FieldLabel("错误类型")
             ErrorTypePickerInline(
                 errorTypes = state.errorTypes,
@@ -450,7 +438,7 @@ private fun SampleEditNewPreview() {
                 errorTypes = previewErrorTypes,
                 form = SampleForm(domainId = 1, attribution = Attribution.CONTROLLABLE)
             ),
-            onUpdateDomain = {}, onUpdateResult = {}, onUpdateDescription = {},
+            onUpdateDomain = {}, onUpdateResult = {},
             onUpdateErrorType = {}, onUpdateAttribution = {}, onUpdateEmotion = {},
             onUpdateReview = {}, onOpenNewErrorType = {}, onDismissNewErrorType = {},
             onCreateErrorType = {}, onLongClickErrorType = {}, onSave = {}, onDelete = {}, onBack = {},
@@ -472,7 +460,6 @@ private fun SampleEditEditingPreview() {
                 form = SampleForm(
                     domainId = 1,
                     result = "线上 bug,影响部分退款订单",
-                    description = "退款金额为 0 的分支没处理",
                     errorTypeId = 1,
                     attribution = Attribution.CONTROLLABLE,
                     emotionIntensity = 4,
@@ -480,7 +467,7 @@ private fun SampleEditEditingPreview() {
                 ),
                 isEditing = true
             ),
-            onUpdateDomain = {}, onUpdateResult = {}, onUpdateDescription = {},
+            onUpdateDomain = {}, onUpdateResult = {},
             onUpdateErrorType = {}, onUpdateAttribution = {}, onUpdateEmotion = {},
             onUpdateReview = {}, onOpenNewErrorType = {}, onDismissNewErrorType = {},
             onCreateErrorType = {}, onLongClickErrorType = {}, onSave = {}, onDelete = {}, onBack = {},
@@ -497,7 +484,7 @@ private fun SampleEditNoDomainPreview() {
     GrowthOSTheme {
         SampleEditContent(
             state = SampleEditUiState(),
-            onUpdateDomain = {}, onUpdateResult = {}, onUpdateDescription = {},
+            onUpdateDomain = {}, onUpdateResult = {},
             onUpdateErrorType = {}, onUpdateAttribution = {}, onUpdateEmotion = {},
             onUpdateReview = {}, onOpenNewErrorType = {}, onDismissNewErrorType = {},
             onCreateErrorType = {}, onLongClickErrorType = {}, onSave = {}, onDelete = {}, onBack = {},

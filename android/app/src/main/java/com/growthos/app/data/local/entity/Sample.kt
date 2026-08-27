@@ -11,6 +11,8 @@ import kotlinx.serialization.Serializable
 /**
  * 样本(R-002 / R-003 / R-006)。MVP 闭环的核心记录。
  *
+ * 「结果」为唯一事件文本字段(2026-08 合并原「一句话描述」,宽语义:发生了什么+造成什么后果)。
+ *
  * 外键指向 Domain 与 ErrorType,不加 ON DELETE CASCADE(技术方案 §8):
  * 删除领域/错误类型前由 UI 层检查引用,避免误删连锁。
  * 索引对齐技术方案 §3.2:(domainId, recordedAt) 供领域页与列表,errorTypeId 供统计与筛选。
@@ -32,7 +34,6 @@ data class Sample(
     val domainId: Long,
     val recordedAt: Long,
     val result: String,
-    val description: String,
     val errorTypeId: Long,
     val attribution: Attribution,
     val emotionIntensity: Int?,

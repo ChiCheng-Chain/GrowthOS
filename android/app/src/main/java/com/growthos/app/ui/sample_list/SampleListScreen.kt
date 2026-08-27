@@ -189,7 +189,7 @@ private fun SampleListContentDataPreview() {
                     SampleWithErrorType(
                         sample = Sample(
                             id = 1, domainId = 1, recordedAt = System.currentTimeMillis(),
-                            result = "线上 bug", description = "退款分支",
+                            result = "线上 bug",
                             errorTypeId = 1, attribution = Attribution.CONTROLLABLE,
                             emotionIntensity = 4, review = "先列状态表"
                         ),
@@ -198,7 +198,7 @@ private fun SampleListContentDataPreview() {
                     SampleWithErrorType(
                         sample = Sample(
                             id = 2, domainId = 1, recordedAt = System.currentTimeMillis() - 3600_000,
-                            result = "双打输 18:21", description = "接杀急躁",
+                            result = "双打输 18:21",
                             errorTypeId = 2, attribution = Attribution.CONTROLLABLE,
                             emotionIntensity = 4, review = "接杀先回位"
                         ),

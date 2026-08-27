@@ -11,12 +11,12 @@ import kotlinx.serialization.Serializable
 /**
  * 导出文件元信息(阶段 7 D6 / R-013)。
  *
- * - [version]:导出格式版本号,后续导入按版本迁移。MVP 固定 1。
+ * - [version]:导出格式版本号,后续导入按版本迁移。v2:样本无 description(表单合并,2026-08-27)。
  * - [exportedAt]:导出时刻 epoch millis,便于用户辨认备份新旧。
  */
 @Serializable
 data class ExportMeta(
-    val version: Int = 1,
+    val version: Int = 2,
     val exportedAt: Long
 )
 

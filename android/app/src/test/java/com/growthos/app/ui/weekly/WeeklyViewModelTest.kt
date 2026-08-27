@@ -241,7 +241,6 @@ class WeeklyViewModelTest {
         domainId = domainId,
         recordedAt = TimeUtil.startOfTodayMillis() - daysAgo * DAY_MILLIS,
         result = "结果",
-        description = "描述",
         errorTypeId = errorTypeId,
         attribution = attribution,
         emotionIntensity = emotion,

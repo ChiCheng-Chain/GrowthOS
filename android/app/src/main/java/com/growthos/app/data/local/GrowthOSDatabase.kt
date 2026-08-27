@@ -26,15 +26,15 @@ import com.growthos.app.util.TimeUtil
  *
  * 实例化只在 [com.growthos.app.di.AppContainer] 内做一次,UI 通过 Repository 访问。
  *
- * version 2:新增 Knowledge 表。用 fallbackToDestructiveMigration(MVP 阶段,
- * 表结构变更时重建库,种子 onCreate 重新插入;后续如需保留数据再加显式 Migration)。
+ * version 3:Sample 删 description 列(表单合并,feature 2026-08-27)。
+ * 沿用 fallbackToDestructiveMigration,升级清库重建(用户已接受,需求 BR-3)。
  */
 @Database(
     entities = [
         Domain::class, ErrorType::class, Sample::class,
         Training::class, Principle::class, Knowledge::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 @TypeConverters(Converters::class)

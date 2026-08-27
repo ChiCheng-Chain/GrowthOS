@@ -43,13 +43,12 @@ data class SampleEditUiState(
 }
 
 /**
- * 录入表单(对齐需求 F2 七字段)。
- * 必填:领域 / 结果 / 描述 / 错误类型 / 归因 / 复盘;情绪可选。
+ * 录入表单(对齐需求 F2 六字段,原「结果」与「一句话描述」已合并,2026-08-27)。
+ * 必填:领域 / 结果 / 错误类型 / 归因 / 复盘;情绪可选。
  */
 data class SampleForm(
     val domainId: Long? = null,
     val result: String = "",
-    val description: String = "",
     val errorTypeId: Long? = null,
     val attribution: Attribution? = null,
     val emotionIntensity: Int? = null,
@@ -59,7 +58,6 @@ data class SampleForm(
     val isValid: Boolean get() =
         domainId != null &&
             result.isNotBlank() &&
-            description.isNotBlank() &&
             errorTypeId != null &&
             attribution != null &&
             review.isNotBlank()
@@ -138,7 +136,6 @@ class SampleViewModel(
                     formState.value = SampleForm(
                         domainId = sample.domainId,
                         result = sample.result,
-                        description = sample.description,
                         errorTypeId = sample.errorTypeId,
                         attribution = sample.attribution,
                         emotionIntensity = sample.emotionIntensity,
@@ -153,7 +150,6 @@ class SampleViewModel(
 
     fun updateDomain(id: Long) { formState.value = formState.value.copy(domainId = id) }
     fun updateResult(v: String) { formState.value = formState.value.copy(result = v) }
-    fun updateDescription(v: String) { formState.value = formState.value.copy(description = v) }
     fun updateErrorType(id: Long) { formState.value = formState.value.copy(errorTypeId = id) }
     fun updateAttribution(a: Attribution) { formState.value = formState.value.copy(attribution = a) }
 
@@ -218,7 +214,6 @@ class SampleViewModel(
                     existing.copy(
                         domainId = form.domainId!!,
                         result = form.result.trim(),
-                        description = form.description.trim(),
                         errorTypeId = form.errorTypeId!!,
                         attribution = form.attribution!!,
                         emotionIntensity = form.emotionIntensity,
@@ -233,7 +228,6 @@ class SampleViewModel(
                     domainId = form.domainId!!,
                     recordedAt = now(),
                     result = form.result.trim(),
-                    description = form.description.trim(),
                     errorTypeId = form.errorTypeId!!,
                     attribution = form.attribution!!,
                     emotionIntensity = form.emotionIntensity,

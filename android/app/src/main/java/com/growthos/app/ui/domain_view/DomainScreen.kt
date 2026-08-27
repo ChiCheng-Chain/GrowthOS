@@ -679,7 +679,7 @@ private fun DomainContentPreview() {
                     SampleWithErrorType(
                         sample = com.growthos.app.data.local.entity.Sample(
                             id = 1, domainId = 1, recordedAt = System.currentTimeMillis(),
-                            result = "线上 bug", description = "退款分支",
+                            result = "线上 bug",
                             errorTypeId = 1, attribution = Attribution.CONTROLLABLE,
                             emotionIntensity = 4, review = "先列状态表"
                         ),

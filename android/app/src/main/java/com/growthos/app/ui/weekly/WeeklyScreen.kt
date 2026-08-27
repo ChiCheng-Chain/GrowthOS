@@ -393,7 +393,7 @@ private fun WeeklyContentDataPreview() {
                 highestEmotion = SampleWithErrorType(
                     sample = com.growthos.app.data.local.entity.Sample(
                         id = 1, domainId = 1, recordedAt = 0,
-                        result = "双打输 18:21", description = "接杀急躁",
+                        result = "双打输 18:21",
                         errorTypeId = 2, attribution = Attribution.CONTROLLABLE,
                         emotionIntensity = 4, review = "接杀先回位再选球"
                     ),

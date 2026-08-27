@@ -91,7 +91,7 @@ class DataExporterTest {
         val errorTypeId = insertErrorType("自定义错误A")
         val sampleId = db.sampleDao().insert(
             Sample(
-                domainId = domainId, recordedAt = 100L, result = "结果", description = "描述",
+                domainId = domainId, recordedAt = 100L, result = "结果",
                 errorTypeId = errorTypeId, attribution = Attribution.CONTROLLABLE,
                 emotionIntensity = 4, review = "复盘"
             )

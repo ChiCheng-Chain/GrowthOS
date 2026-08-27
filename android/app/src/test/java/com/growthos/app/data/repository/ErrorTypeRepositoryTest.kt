@@ -145,7 +145,7 @@ class ErrorTypeRepositoryTest {
     }
 
     private fun makeSample(domainId: Long, errorTypeId: Long, time: Long) = Sample(
-        domainId = domainId, recordedAt = time, result = "结果", description = "描述",
+        domainId = domainId, recordedAt = time, result = "结果",
         errorTypeId = errorTypeId, attribution = Attribution.CONTROLLABLE,
         emotionIntensity = null, review = "复盘"
     )

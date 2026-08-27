@@ -260,7 +260,7 @@ private val previewTraining = Training(
 private val previewSample = SampleWithErrorType(
     sample = Sample(
         id = 1, domainId = 1, recordedAt = 2000000L,
-        result = "退款分支又漏了", description = "金额为 0",
+        result = "退款分支又漏了",
         errorTypeId = 1, attribution = Attribution.CONTROLLABLE,
         emotionIntensity = 3, review = "先列状态表"
     ),

@@ -48,7 +48,9 @@ import com.growthos.app.data.local.entity.Domain
 import com.growthos.app.data.local.entity.Knowledge
 import com.growthos.app.data.local.relation.KnowledgeWithDomainName
 import com.growthos.app.domain.model.KnowledgeType
+import com.growthos.app.ui.components.DomainFilterSheet
 import com.growthos.app.ui.components.Eyebrow
+import com.growthos.app.ui.components.FilterEntryRow
 import com.growthos.app.ui.components.LedgerRule
 import com.growthos.app.ui.components.NextActionBlock
 import com.growthos.app.ui.theme.GrowthOSTheme
@@ -77,6 +79,7 @@ fun KnowledgeListScreen(
         )
     )
     val state by vm.uiState.collectAsStateWithLifecycle()
+    var filterSheetOpen by remember { mutableStateOf(false) }
 
     KnowledgeListContent(
         state = state,
@@ -85,7 +88,18 @@ fun KnowledgeListScreen(
         onOpenCreate = onOpenCreate,
         onDelete = vm::delete,
         onToggleDone = vm::toggleDone,
-        onFilterDomain = vm::filterByDomain
+        onFilterDomain = vm::filterByDomain,
+        onOpenFilter = { filterSheetOpen = true }
+    )
+
+    // 领域筛选弹层(feature 2026-08-27 BR-4):复用既有 filterByDomain,选中即时生效。
+    DomainFilterSheet(
+        visible = filterSheetOpen,
+        title = "筛选知识",
+        domainFilter = state.domainFilter,
+        availableDomains = state.domains,
+        onDomainSelect = vm::filterByDomain,
+        onDismiss = { filterSheetOpen = false }
     )
 }
 
@@ -98,7 +112,8 @@ private fun KnowledgeListContent(
     onOpenCreate: () -> Unit,
     onDelete: (Knowledge) -> Unit,
     onToggleDone: (Knowledge) -> Unit,
-    onFilterDomain: (Long?) -> Unit
+    onFilterDomain: (Long?) -> Unit,
+    onOpenFilter: () -> Unit = {}
 ) {
     var deleting by remember { mutableStateOf<KnowledgeWithDomainName?>(null) }
 
@@ -129,15 +144,13 @@ private fun KnowledgeListContent(
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
         ) {
-            // 领域筛选条:「全部」+ 各可见领域
-            if (state.domains.isNotEmpty()) {
-                DomainFilterRow(
-                    domains = state.domains,
-                    selected = state.domainFilter,
-                    onSelect = onFilterDomain
-                )
-                LedgerRule(modifier = Modifier.padding(horizontal = 20.dp))
-            }
+            // 领域筛选入口行(feature 2026-08-27 BR-3/BR-4):常驻条改弹层,统一三列表页交互
+            val activeDomain = state.domains.firstOrNull { it.id == state.domainFilter }
+            FilterEntryRow(
+                countText = "${state.filteredKnowledges.size} 条",
+                activeLabel = activeDomain?.name,
+                onOpenFilter = onOpenFilter
+            )
 
             if (state.isEmpty) {
                 EmptyHint()
@@ -251,45 +264,7 @@ private fun KnowledgeRow(
     }
 }
 
-/** 领域筛选条:「全部」+ 各可见领域 chips。 */
-@Composable
-@OptIn(ExperimentalLayoutApi::class)
-private fun DomainFilterRow(
-    domains: List<Domain>,
-    selected: Long?,
-    onSelect: (Long?) -> Unit
-) {
-    FlowRow(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        FilterChip("全部", selected == null) { onSelect(null) }
-        domains.forEach { domain ->
-            FilterChip(domain.name, selected == domain.id) { onSelect(domain.id) }
-        }
-    }
-}
-
-@Composable
-private fun FilterChip(text: String, selected: Boolean, onClick: () -> Unit) {
-    val bg = if (selected) MaterialTheme.colorScheme.onBackground
-    else MaterialTheme.colorScheme.surfaceVariant
-    val fg = if (selected) MaterialTheme.colorScheme.background
-    else MaterialTheme.colorScheme.onSurfaceVariant
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelLarge,
-        color = fg,
-        modifier = Modifier
-            .background(bg)
-            .clickable { onClick() }
-            .padding(horizontal = 14.dp, vertical = 8.dp)
-    )
-}
-
+/** 领域筛选条(已改弹层形态,此组件保留给 Preview 使用场景已移除;删除)。 */
 @Composable
 private fun EmptyHint() {
     Column(

@@ -39,7 +39,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.growthos.app.GrowthOSApp
 import com.growthos.app.data.local.entity.Principle
 import com.growthos.app.data.local.relation.PrincipleWithNames
+import com.growthos.app.ui.components.DomainFilterSheet
 import com.growthos.app.ui.components.Eyebrow
+import com.growthos.app.ui.components.FilterEntryRow
 import com.growthos.app.ui.components.LedgerRule
 import com.growthos.app.ui.components.NextActionBlock
 import com.growthos.app.ui.theme.GrowthOSTheme
@@ -61,16 +63,28 @@ fun PrincipleListScreen(
 ) {
     val container = (LocalContext.current.applicationContext as GrowthOSApp).container
     val vm: PrincipleListViewModel = viewModel(
-        factory = PrincipleListViewModel.Factory(container.principleRepository)
+        factory = PrincipleListViewModel.Factory(container.principleRepository, container.domainRepository)
     )
     val state by vm.uiState.collectAsStateWithLifecycle()
+    var filterSheetOpen by remember { mutableStateOf(false) }
 
     PrincipleListContent(
         state = state,
         onBack = onBack,
         onOpenEdit = onOpenEdit,
         onOpenCreate = onOpenCreate,
-        onDelete = vm::delete
+        onDelete = vm::delete,
+        onOpenFilter = { filterSheetOpen = true }
+    )
+
+    // 领域筛选弹层(feature 2026-08-27 BR-3):选中即时生效。
+    DomainFilterSheet(
+        visible = filterSheetOpen,
+        title = "筛选原则",
+        domainFilter = state.domainFilter,
+        availableDomains = state.availableDomains,
+        onDomainSelect = vm::filterByDomain,
+        onDismiss = { filterSheetOpen = false }
     )
 }
 
@@ -81,7 +95,8 @@ private fun PrincipleListContent(
     onBack: () -> Unit,
     onOpenEdit: (Long?) -> Unit,
     onOpenCreate: () -> Unit,
-    onDelete: (Principle) -> Unit
+    onDelete: (Principle) -> Unit,
+    onOpenFilter: () -> Unit = {}
 ) {
     var deleting by remember { mutableStateOf<PrincipleWithNames?>(null) }
 
@@ -112,10 +127,18 @@ private fun PrincipleListContent(
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
         ) {
+            // 领域筛选入口行(feature 2026-08-27 BR-3)
+            val activeDomain = state.availableDomains.firstOrNull { it.id == state.domainFilter }
+            FilterEntryRow(
+                countText = "${state.filteredPrinciples.size} 条",
+                activeLabel = activeDomain?.name,
+                onOpenFilter = onOpenFilter
+            )
+
             if (state.isEmpty) {
                 EmptyHint()
             } else {
-                state.principles.forEach { item ->
+                state.filteredPrinciples.forEach { item ->
                     PrincipleRow(
                         item = item,
                         onClick = { onOpenEdit(item.principle.id) },

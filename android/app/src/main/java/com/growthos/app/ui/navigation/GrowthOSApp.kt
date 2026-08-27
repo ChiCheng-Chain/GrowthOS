@@ -181,6 +181,15 @@ fun GrowthOSApp() {
                     },
                     onNavigateToSampleList = { domainId ->
                         navController.navigate(Routes.sampleList(domainId))
+                    },
+                    onNavigateToTrainingList = {
+                        navController.navigate(Routes.TRAINING_LIST)
+                    },
+                    onNavigateToPrincipleList = {
+                        navController.navigate(Routes.PRINCIPLE_LIST)
+                    },
+                    onNavigateToKnowledgeList = {
+                        navController.navigate(Routes.KNOWLEDGE_LIST)
                     }
                 )
             }

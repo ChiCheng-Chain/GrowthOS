@@ -11,5 +11,6 @@ class GrowthOSApp : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+        SeedHook.seedAction?.invoke(this)
     }
 }

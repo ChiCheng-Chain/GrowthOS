@@ -57,6 +57,11 @@ class SampleListViewModel(
         filterState.value = filterState.value.copy(attribution = attribution)
     }
 
+    /** 清所有筛选(筛选弹层"清除全部"入口,对齐 DomainStatsViewModel)。 */
+    fun clearFilter() {
+        filterState.value = SampleFilter()
+    }
+
     private fun applyFilter(
         samples: List<SampleWithErrorType>,
         filter: SampleFilter

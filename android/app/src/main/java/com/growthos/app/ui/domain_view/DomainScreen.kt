@@ -26,7 +26,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,6 +52,8 @@ import com.growthos.app.ui.components.Eyebrow
 import com.growthos.app.ui.components.LedgerRule
 import com.growthos.app.ui.components.NextActionBlock
 import com.growthos.app.ui.components.PageHeader
+import com.growthos.app.ui.components.SampleFilterSheet
+import com.growthos.app.ui.components.SectionCard
 import com.growthos.app.ui.domain.DomainDialog
 import com.growthos.app.ui.domain.DomainEditDialog
 import com.growthos.app.ui.domain.DomainUiState
@@ -75,7 +80,10 @@ fun DomainScreen(
     onNavigateToCreateTraining: (Long) -> Unit = {},
     onNavigateToCreatePrinciple: (Long) -> Unit = {},
     onNavigateToCreateKnowledge: (Long) -> Unit = {},
-    onNavigateToSampleList: (Long) -> Unit = {}
+    onNavigateToSampleList: (Long) -> Unit = {},
+    onNavigateToTrainingList: () -> Unit = {},
+    onNavigateToPrincipleList: () -> Unit = {},
+    onNavigateToKnowledgeList: () -> Unit = {}
 ) {
     val container = (LocalContext.current.applicationContext as GrowthOSApp).container
     val domainVm: DomainViewModel = viewModel(
@@ -94,6 +102,7 @@ fun DomainScreen(
     val statsState by statsVm.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
+    var filterSheetOpen by remember { mutableStateOf(false) }
 
     DomainContent(
         domainState = domainState,
@@ -124,12 +133,30 @@ fun DomainScreen(
         onNavigateToCreatePrinciple = onNavigateToCreatePrinciple,
         onNavigateToCreateKnowledge = onNavigateToCreateKnowledge,
         onNavigateToSampleList = onNavigateToSampleList,
+        onNavigateToTrainingList = onNavigateToTrainingList,
+        onNavigateToPrincipleList = onNavigateToPrincipleList,
+        onNavigateToKnowledgeList = onNavigateToKnowledgeList,
         onFilterErrorType = { id ->
             statsVm.filterByErrorType(id)
             scope.launch { scrollState.animateScrollTo(scrollState.maxValue) }
         },
         onFilterAttribution = statsVm::filterByAttribution,
-        onClearFilter = statsVm::clearFilter
+        onClearFilter = statsVm::clearFilter,
+        onOpenFilter = { filterSheetOpen = true }
+    )
+
+    // 筛选弹层(feature 2026-08-27):领域页与全量列表页共用组件,选中即时生效。
+    SampleFilterSheet(
+        visible = filterSheetOpen,
+        availableErrorTypes = statsState.availableErrorTypes,
+        filter = statsState.filter.errorTypeId to statsState.filter.attribution,
+        errorTypeName = { id ->
+            statsState.availableErrorTypes.firstOrNull { it.errorTypeId == id }?.errorTypeName
+        },
+        onErrorTypeSelect = statsVm::filterByErrorType,
+        onAttributionSelect = statsVm::filterByAttribution,
+        onClearAll = statsVm::clearFilter,
+        onDismiss = { filterSheetOpen = false }
     )
 }
 
@@ -154,9 +181,13 @@ fun DomainContent(
     onNavigateToCreatePrinciple: (Long) -> Unit,
     onNavigateToCreateKnowledge: (Long) -> Unit,
     onNavigateToSampleList: (Long) -> Unit,
+    onNavigateToTrainingList: () -> Unit,
+    onNavigateToPrincipleList: () -> Unit,
+    onNavigateToKnowledgeList: () -> Unit,
     onFilterErrorType: (Long?) -> Unit,
     onFilterAttribution: (Attribution?) -> Unit,
-    onClearFilter: () -> Unit
+    onClearFilter: () -> Unit,
+    onOpenFilter: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -207,106 +238,126 @@ fun DomainContent(
             LedgerRule()
         }
 
-        // 四区块(仅有选中领域时展示)
+        // 四区块(仅有选中领域时展示)——信息分层改造(feature 2026-08-27):
+        // 每区块一张 SectionCard,卡间 20dp 留白;筛选收进底部弹层,标题行只留入口。
         if (domainState.selectedDomain != null) {
-            // F1 样本(合并原"最近样本"+"样本列表"):筛选条上提 + 预览 + 查看全部入口。
+            Spacer(Modifier.height(20.dp))
+
+            // F1 样本(合并原"最近样本"+"样本列表"):筛选入口 + 预览 + 查看全部入口。
             // 预览封顶 SAMPLE_PREVIEW_LIMIT 条,全量进独立列表页 onNavigateToSampleList。
-            SectionLabel("样本")
-            SampleFilterBar(
-                availableErrorTypes = statsState.availableErrorTypes,
-                filter = statsState.filter,
-                onErrorTypeSelect = onFilterErrorType,
-                onAttributionSelect = onFilterAttribution,
-                modifier = Modifier.padding(vertical = 4.dp)
-            )
-            LedgerRule(modifier = Modifier.padding(top = 4.dp))
-            if (statsState.filteredSamples.isEmpty()) {
-                EmptyHint(
-                    if (statsState.filter.errorTypeId == null && statsState.filter.attribution == null)
-                        "还没有样本,去记录一条"
-                    else "没有符合条件的样本"
+            SectionCard {
+                SampleSectionHeader(
+                    filter = statsState.filter,
+                    onOpenFilter = onOpenFilter
                 )
-            } else {
-                statsState.filteredSamples.take(SAMPLE_PREVIEW_LIMIT).forEach { row ->
-                    SampleStatRow(row = row, onClick = { onOpenSample(row.sample.id) })
-                }
-                if (statsState.filteredSamples.size > SAMPLE_PREVIEW_LIMIT) {
-                    ViewAllEntry(
-                        count = statsState.filteredSamples.size,
-                        onClick = {
-                            domainState.selectedId?.let { onNavigateToSampleList(it) }
-                        }
+                if (statsState.filteredSamples.isEmpty()) {
+                    EmptyHint(
+                        if (statsState.filter.errorTypeId == null && statsState.filter.attribution == null)
+                            "还没有样本,去记录一条"
+                        else "没有符合条件的样本"
                     )
-                }
-            }
-            LedgerRule()
-
-            // F2 错误类型分布(点条触发筛选 → 设计 D5)
-            SectionLabel("错误类型分布")
-            if (statsState.errorDistribution.isEmpty()) {
-                EmptyHint("还没有样本")
-            } else {
-                val max = statsState.errorDistribution.maxOf { it.count }
-                statsState.errorDistribution.forEach { et ->
-                    DistributionBar(
-                        name = et.errorTypeName,
-                        count = et.count,
-                        max = max,
-                        modifier = Modifier
-                            .padding(horizontal = 20.dp)
-                            .combinedClickable { onFilterErrorType(et.errorTypeId) }
-                    )
-                }
-            }
-            LedgerRule(modifier = Modifier.padding(top = 8.dp))
-
-            // F3 当前训练项
-            SectionLabel("当前训练项")
-            if (statsState.inProgressTrainings.isEmpty()) {
-                EmptyActionHint("点击新建训练项") {
-                    domainState.selectedId?.let { onNavigateToCreateTraining(it) }
-                }
-            } else {
-                statsState.inProgressTrainings.forEach { t ->
-                    Surface(
-                        onClick = { onNavigateToEffect(t.training.id) },
-                        color = MaterialTheme.colorScheme.background,
-                        contentColor = MaterialTheme.colorScheme.onBackground
-                    ) {
-                        NextActionBlock(
-                            label = "训练中 · ${t.errorTypeName}",
-                            text = t.training.goal
+                } else {
+                    statsState.filteredSamples.take(SAMPLE_PREVIEW_LIMIT).forEach { row ->
+                        SampleStatRow(row = row, onClick = { onOpenSample(row.sample.id) })
+                    }
+                    if (statsState.filteredSamples.size > SAMPLE_PREVIEW_LIMIT) {
+                        ViewAllEntry(
+                            count = statsState.filteredSamples.size,
+                            onClick = {
+                                domainState.selectedId?.let { onNavigateToSampleList(it) }
+                            }
                         )
                     }
                 }
             }
-            LedgerRule()
 
-            // F4 近期原则(阶段 6:可点进编辑,D4)
-            SectionLabel("近期原则")
-            if (statsState.recentPrinciples.isEmpty()) {
-                EmptyActionHint("点击新建原则") {
-                    domainState.selectedId?.let { onNavigateToCreatePrinciple(it) }
-                }
-            } else {
-                statsState.recentPrinciples.forEach { p ->
-                    PrincipleRow(p) { onNavigateToPrincipleEdit(p.id) }
+            Spacer(Modifier.height(20.dp))
+
+            // F2 错误类型分布(点条触发筛选 → 设计 D5,现经筛选弹层)
+            SectionCard {
+                SectionCardLabel("错误类型分布")
+                if (statsState.errorDistribution.isEmpty()) {
+                    EmptyHint("还没有样本")
+                } else {
+                    val max = statsState.errorDistribution.maxOf { it.count }
+                    statsState.errorDistribution.forEach { et ->
+                        DistributionBar(
+                            name = et.errorTypeName,
+                            count = et.count,
+                            max = max,
+                            modifier = Modifier
+                                .padding(horizontal = 20.dp)
+                                .combinedClickable { onFilterErrorType(et.errorTypeId) }
+                        )
+                    }
                 }
             }
-            LedgerRule()
 
-            // 近期知识(外部摄取:经验/待办,可点进编辑)
-            SectionLabel("近期知识")
-            if (statsState.recentKnowledges.isEmpty()) {
-                EmptyActionHint("点击新建知识") {
-                    domainState.selectedId?.let { onNavigateToCreateKnowledge(it) }
+            Spacer(Modifier.height(20.dp))
+
+            // F3 当前训练项(预览 3 条,「全部 N 条」含已结束训练,R-1 口径)
+            SectionCard {
+                SectionCardLabel("当前训练项")
+                if (statsState.inProgressTrainings.isEmpty()) {
+                    EmptyActionHint("点击新建训练项") {
+                        domainState.selectedId?.let { onNavigateToCreateTraining(it) }
+                    }
+                } else {
+                    statsState.inProgressTrainings.take(TRAINING_PREVIEW_LIMIT).forEach { t ->
+                        Surface(
+                            onClick = { onNavigateToEffect(t.training.id) },
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = MaterialTheme.colorScheme.onBackground
+                        ) {
+                            NextActionBlock(
+                                label = "训练中 · ${t.errorTypeName}",
+                                text = t.training.goal
+                            )
+                        }
+                    }
                 }
-            } else {
-                statsState.recentKnowledges.forEach { k ->
-                    KnowledgeMiniRow(k) { onNavigateToKnowledgeEdit(k.id) }
+                if (statsState.trainingTotal > TRAINING_PREVIEW_LIMIT) {
+                    ViewAllEntry(count = statsState.trainingTotal, onClick = onNavigateToTrainingList)
                 }
             }
-            LedgerRule()
+
+            Spacer(Modifier.height(20.dp))
+
+            // F4 近期原则(阶段 6:可点进编辑,D4;预览 3 条)
+            SectionCard {
+                SectionCardLabel("近期原则")
+                if (statsState.recentPrinciples.isEmpty()) {
+                    EmptyActionHint("点击新建原则") {
+                        domainState.selectedId?.let { onNavigateToCreatePrinciple(it) }
+                    }
+                } else {
+                    statsState.recentPrinciples.take(PRINCIPLE_PREVIEW_LIMIT).forEach { p ->
+                        PrincipleRow(p) { onNavigateToPrincipleEdit(p.id) }
+                    }
+                }
+                if (statsState.principleTotal > PRINCIPLE_PREVIEW_LIMIT) {
+                    ViewAllEntry(count = statsState.principleTotal, onClick = onNavigateToPrincipleList)
+                }
+            }
+
+            Spacer(Modifier.height(20.dp))
+
+            // 近期知识(外部摄取:经验/待办,可点进编辑;预览 3 条)
+            SectionCard {
+                SectionCardLabel("近期知识")
+                if (statsState.recentKnowledges.isEmpty()) {
+                    EmptyActionHint("点击新建知识") {
+                        domainState.selectedId?.let { onNavigateToCreateKnowledge(it) }
+                    }
+                } else {
+                    statsState.recentKnowledges.take(KNOWLEDGE_PREVIEW_LIMIT).forEach { k ->
+                        KnowledgeMiniRow(k) { onNavigateToKnowledgeEdit(k.id) }
+                    }
+                }
+                if (statsState.knowledgeTotal > KNOWLEDGE_PREVIEW_LIMIT) {
+                    ViewAllEntry(count = statsState.knowledgeTotal, onClick = onNavigateToKnowledgeList)
+                }
+            }
         }
 
         Spacer(Modifier.height(32.dp))
@@ -329,7 +380,7 @@ fun DomainContent(
 private fun SampleStatRow(row: SampleWithErrorType, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
-        color = MaterialTheme.colorScheme.background,
+        color = MaterialTheme.colorScheme.surfaceVariant,
         contentColor = MaterialTheme.colorScheme.onBackground
     ) {
         Column(
@@ -345,7 +396,7 @@ private fun SampleStatRow(row: SampleWithErrorType, onClick: () -> Unit) {
             ) {
                 Text(
                     formatTime(row.sample.recordedAt),
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontFamily = MonoFamily
                 )
@@ -371,7 +422,7 @@ private fun SampleStatRow(row: SampleWithErrorType, onClick: () -> Unit) {
 private fun PrincipleRow(principle: Principle, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
-        color = MaterialTheme.colorScheme.background,
+        color = MaterialTheme.colorScheme.surfaceVariant,
         contentColor = MaterialTheme.colorScheme.onBackground
     ) {
         Column(
@@ -399,7 +450,7 @@ private fun PrincipleRow(principle: Principle, onClick: () -> Unit) {
 private fun KnowledgeMiniRow(knowledge: Knowledge, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
-        color = MaterialTheme.colorScheme.background,
+        color = MaterialTheme.colorScheme.surfaceVariant,
         contentColor = MaterialTheme.colorScheme.onBackground
     ) {
         Column(
@@ -635,10 +686,9 @@ private fun HiddenChip(
     }
 }
 
+/** 卡片内区块标题(卡片化后区块头:13sp SemiBold + 主文本色,padding 收窄)。 */
 @Composable
-private fun SectionLabel(text: String) {
-    // 区块标题:13sp SemiBold + 主文本色,撑起分区层级。
-    // 不再用 Eyebrow(11sp 弱色等宽)——那套适合做章节眉标,撑不起分区标题的角色。
+private fun SectionCardLabel(text: String) {
     Text(
         text = text,
         style = MaterialTheme.typography.titleSmall,
@@ -646,12 +696,66 @@ private fun SectionLabel(text: String) {
         color = MaterialTheme.colorScheme.onBackground,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 20.dp)
+            .padding(horizontal = 20.dp, vertical = 14.dp)
     )
 }
 
+/**
+ * 样本卡头:标题 + 条数 + 筛选入口(未激活低调小字/激活实底胶囊,BR-2);
+ * 激活时下方显示摘要 chips,点单个 chip 清除该条件。
+ */
+@Composable
+private fun SampleSectionHeader(
+    filter: SampleFilter,
+    onOpenFilter: () -> Unit
+) {
+    val activeCount = listOfNotNull(filter.errorTypeId, filter.attribution).size
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "样本",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            if (activeCount == 0) {
+                Text(
+                    "筛选",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .clickable(onClick = onOpenFilter)
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                )
+            } else {
+                Text(
+                    "筛选 · $activeCount 项",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.background,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(MaterialTheme.colorScheme.onBackground)
+                        .clickable(onClick = onOpenFilter)
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                )
+            }
+        }
+    }
+}
+
 // 领域页样本区块预览封顶;超过则展示"查看全部"入口,全量进独立列表页。
-private const val SAMPLE_PREVIEW_LIMIT = 10
+// 训练/原则/知识预览 3 条(feature 2026-08-27 BR-2),「全部」进各自列表页。
+private const val SAMPLE_PREVIEW_LIMIT = 5
+private const val TRAINING_PREVIEW_LIMIT = 3
+private const val PRINCIPLE_PREVIEW_LIMIT = 3
+private const val KNOWLEDGE_PREVIEW_LIMIT = 3
 
 private val timeFmt = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
 private val dateFmt = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -714,8 +818,10 @@ private fun DomainContentPreview() {
             onNavigateToKnowledgeEdit = {},
             onNavigateToCreateTraining = {}, onNavigateToCreatePrinciple = {}, onNavigateToCreateKnowledge = {},
             onNavigateToSampleList = {},
+            onNavigateToTrainingList = {}, onNavigateToPrincipleList = {}, onNavigateToKnowledgeList = {},
             onFilterErrorType = {}, onFilterAttribution = {},
-            onClearFilter = {}
+            onClearFilter = {},
+            onOpenFilter = {}
         )
     }
 }

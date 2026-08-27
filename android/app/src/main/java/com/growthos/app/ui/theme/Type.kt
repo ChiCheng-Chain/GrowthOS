@@ -85,14 +85,14 @@ val GrowthOSTypography = Typography(
         fontSize = 11.sp,
         fontWeight = FontWeight.Medium,
         lineHeight = 14.sp,
-        letterSpacing = 1.sp
+        letterSpacing = 0.5.sp
     ),
     labelMedium = TextStyle(
         fontFamily = MonoFamily,
         fontSize = 10.sp,
         fontWeight = FontWeight.Medium,
         lineHeight = 13.sp,
-        letterSpacing = 1.sp
+        letterSpacing = 0.5.sp
     ),
     labelSmall = TextStyle(
         fontSize = 11.sp,

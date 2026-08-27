@@ -39,7 +39,11 @@ data class DomainStatsUiState(
     val recentKnowledges: List<Knowledge> = emptyList(),
     val filteredSamples: List<SampleWithErrorType> = emptyList(),
     val filter: SampleFilter = SampleFilter(),
-    val hasDomain: Boolean = false
+    val hasDomain: Boolean = false,
+    /** 「查看全部」计数:该领域全部训练(含已结束)/原则/知识总条数(BR-1)。 */
+    val trainingTotal: Int = 0,
+    val principleTotal: Int = 0,
+    val knowledgeTotal: Int = 0
 ) {
     val availableErrorTypes: List<ErrorTypeCount> get() = errorDistribution
 }
@@ -49,7 +53,7 @@ data class SampleFilter(
     val attribution: Attribution? = null
 )
 
-/** 五区块原始数据 + 全量带名样本(供筛选),内部聚合用。 */
+/** 五区块原始数据 + 全量带名样本(供筛选)+ 「查看全部」计数,内部聚合用。 */
 private data class DomainData(
     val recentSamples: List<SampleWithErrorType>,
     val errorDistribution: List<ErrorTypeCount>,
@@ -57,7 +61,10 @@ private data class DomainData(
     val recentPrinciples: List<Principle>,
     val recentKnowledges: List<Knowledge>,
     val baseSamples: List<SampleWithErrorType>,
-    val hasDomain: Boolean
+    val hasDomain: Boolean,
+    val trainingTotal: Int = 0,
+    val principleTotal: Int = 0,
+    val knowledgeTotal: Int = 0
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -89,23 +96,36 @@ class DomainStatsViewModel(
                 kotlinx.coroutines.flow.flowOf(emptyList<SampleWithErrorType>())
             ) { recent, dist, trainings, pk, base ->
                 val (principles, knowledges) = pk
-                DomainData(recent, dist, trainings, principles.take(PRINCIPLE_LIMIT), knowledges.take(KNOWLEDGE_LIMIT), base, hasDomain = false)
+                DomainData(
+                    recent, dist, trainings, principles.take(PRINCIPLE_LIMIT), knowledges.take(KNOWLEDGE_LIMIT),
+                    base, hasDomain = false, trainingTotal = 0, principleTotal = 0, knowledgeTotal = 0
+                )
             }
         } else {
             val principlesAndKnowledges = combine(
                 principleRepository.observeByDomain(domainId),
                 knowledgeRepository.observeByDomain(domainId)
             ) { p, k -> p to k }
+            // 进行中训练(预览)+ 全部训练(计数,R-1 口径:含已结束)两流并行
+            val trainingsAndTotal = combine(
+                trainingRepository.observeInProgressByDomainWithTypeName(domainId),
+                trainingRepository.observeByDomain(domainId)
+            ) { inProgress, all -> inProgress to all.size }
 
             combine(
                 sampleRepository.observeRecentByDomain(domainId, RECENT_LIMIT),
                 sampleRepository.observeTopErrorTypes(domainId, 0L, Long.MAX_VALUE, DISTRIBUTION_LIMIT),
-                trainingRepository.observeInProgressByDomainWithTypeName(domainId),
+                trainingsAndTotal,
                 principlesAndKnowledges,
                 sampleRepository.observeWithNames(domainId)
-            ) { recent, dist, trainings, pk, base ->
+            ) { recent, dist, tt, pk, base ->
                 val (principles, knowledges) = pk
-                DomainData(recent, dist, trainings, principles.take(PRINCIPLE_LIMIT), knowledges.take(KNOWLEDGE_LIMIT), base, hasDomain = true)
+                val (inProgress, trainingCount) = tt
+                DomainData(
+                    recent, dist, inProgress, principles.take(PRINCIPLE_LIMIT), knowledges.take(KNOWLEDGE_LIMIT),
+                    base, hasDomain = true,
+                    trainingTotal = trainingCount, principleTotal = principles.size, knowledgeTotal = knowledges.size
+                )
             }
         }
     }
@@ -119,7 +139,10 @@ class DomainStatsViewModel(
             recentKnowledges = data.recentKnowledges,
             filteredSamples = if (data.hasDomain) applyFilter(data.baseSamples, filter) else emptyList(),
             filter = filter,
-            hasDomain = data.hasDomain
+            hasDomain = data.hasDomain,
+            trainingTotal = data.trainingTotal,
+            principleTotal = data.principleTotal,
+            knowledgeTotal = data.knowledgeTotal
         )
     }.stateIn(
         scope = viewModelScope,
@@ -171,7 +194,7 @@ class DomainStatsViewModel(
     private companion object {
         const val RECENT_LIMIT = 5
         const val DISTRIBUTION_LIMIT = 8
-        const val PRINCIPLE_LIMIT = 5
-        const val KNOWLEDGE_LIMIT = 5
+        const val PRINCIPLE_LIMIT = 3
+        const val KNOWLEDGE_LIMIT = 3
     }
 }

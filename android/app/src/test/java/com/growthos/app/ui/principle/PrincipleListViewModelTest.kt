@@ -46,13 +46,32 @@ class PrincipleListViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     private fun newVm(dao: FakePrincipleDao): PrincipleListViewModel =
-        PrincipleListViewModel(PrincipleRepository(dao))
+        PrincipleListViewModel(PrincipleRepository(dao), DomainRepository(FakeDomainDao()))
 
     @Test
     fun `empty list yields empty state`() = runTest(testDispatcher) {
         val vm = newVm(FakePrincipleDao())
         advanceUntilIdle()
         assertTrue(vm.uiState.value.isEmpty)
+    }
+
+    @Test
+    fun `domain filter narrows list and null restores all`() = runTest(testDispatcher) {
+        val dao = FakePrincipleDao()
+        dao.insert(Principle(id = 1, content = "编程领域", createdAt = 100L, domainId = 1L))
+        dao.insert(Principle(id = 2, content = "战旗领域", createdAt = 200L, domainId = 2L))
+        val vm = newVm(dao)
+        advanceUntilIdle()
+        assertEquals(2, vm.uiState.value.filteredPrinciples.size)
+
+        vm.filterByDomain(1L)
+        advanceUntilIdle()
+        assertEquals(1, vm.uiState.value.filteredPrinciples.size)
+        assertEquals(1L, vm.uiState.value.filteredPrinciples.first().principle.domainId)
+
+        vm.filterByDomain(null)
+        advanceUntilIdle()
+        assertEquals(2, vm.uiState.value.filteredPrinciples.size)
     }
 
     @Test

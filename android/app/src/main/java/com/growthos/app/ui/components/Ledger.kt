@@ -10,12 +10,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -39,6 +41,25 @@ fun LedgerRule(
         thickness = 0.5.dp,
         color = color
     )
+}
+
+// 区块卡片:信息分层的"块"级容器(feature 2026-08-27 信息分层改造)。
+// 浅底(PaperDim)圆角、无阴影,卡内行级分隔仍用 LedgerRule;卡间由调用方留 24dp。
+@Composable
+fun SectionCard(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(vertical = 4.dp)
+    ) {
+        content()
+    }
 }
 
 // 章节眉标:等宽小字 + 一段短线,手册式的章节起首。

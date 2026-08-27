@@ -40,7 +40,9 @@ import com.growthos.app.GrowthOSApp
 import com.growthos.app.data.local.entity.Training
 import com.growthos.app.data.local.relation.TrainingWithNames
 import com.growthos.app.domain.model.TrainingStatus
+import com.growthos.app.ui.components.DomainFilterSheet
 import com.growthos.app.ui.components.Eyebrow
+import com.growthos.app.ui.components.FilterEntryRow
 import com.growthos.app.ui.components.LedgerRule
 import com.growthos.app.ui.components.NextActionBlock
 import com.growthos.app.ui.theme.GrowthOSTheme
@@ -63,9 +65,10 @@ fun TrainingListScreen(
 ) {
     val container = (LocalContext.current.applicationContext as GrowthOSApp).container
     val vm: TrainingListViewModel = viewModel(
-        factory = TrainingListViewModel.Factory(container.trainingRepository)
+        factory = TrainingListViewModel.Factory(container.trainingRepository, container.domainRepository)
     )
     val state by vm.uiState.collectAsStateWithLifecycle()
+    var filterSheetOpen by remember { mutableStateOf(false) }
 
     TrainingListContent(
         state = state,
@@ -73,7 +76,18 @@ fun TrainingListScreen(
         onOpenEffect = onOpenEffect,
         onOpenCreate = onOpenCreate,
         onFinish = vm::finishTraining,
-        onDelete = vm::deleteTraining
+        onDelete = vm::deleteTraining,
+        onOpenFilter = { filterSheetOpen = true }
+    )
+
+    // 领域筛选弹层(feature 2026-08-27 BR-3):选中即时生效。
+    DomainFilterSheet(
+        visible = filterSheetOpen,
+        title = "筛选训练项",
+        domainFilter = state.domainFilter,
+        availableDomains = state.availableDomains,
+        onDomainSelect = vm::filterByDomain,
+        onDismiss = { filterSheetOpen = false }
     )
 }
 
@@ -85,7 +99,8 @@ private fun TrainingListContent(
     onOpenEffect: (Long) -> Unit,
     onOpenCreate: () -> Unit,
     onFinish: (Long, TrainingStatus) -> Unit,
-    onDelete: (Long) -> Unit
+    onDelete: (Long) -> Unit,
+    onOpenFilter: () -> Unit = {}
 ) {
     var finishing by remember { mutableStateOf<TrainingWithNames?>(null) }
     var deleting by remember { mutableStateOf<TrainingWithNames?>(null) }
@@ -117,10 +132,18 @@ private fun TrainingListContent(
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
         ) {
+            // 领域筛选入口行(feature 2026-08-27 BR-3)
+            val activeDomain = state.availableDomains.firstOrNull { it.id == state.domainFilter }
+            FilterEntryRow(
+                countText = "${state.filteredTrainings.size} 项",
+                activeLabel = activeDomain?.name,
+                onOpenFilter = onOpenFilter
+            )
+
             if (state.isEmpty) {
                 EmptyHint()
             } else {
-                state.trainings.forEach { item ->
+                state.filteredTrainings.forEach { item ->
                     TrainingRow(
                         item = item,
                         onClick = { onOpenEffect(item.training.id) },

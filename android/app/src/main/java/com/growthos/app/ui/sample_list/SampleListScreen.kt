@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -25,8 +26,12 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -38,7 +43,7 @@ import com.growthos.app.data.local.entity.Sample
 import com.growthos.app.data.local.relation.SampleWithErrorType
 import com.growthos.app.domain.model.Attribution
 import com.growthos.app.ui.components.LedgerRule
-import com.growthos.app.ui.domain_view.SampleFilterBar
+import com.growthos.app.ui.components.SampleFilterSheet
 import com.growthos.app.ui.theme.GrowthOSTheme
 import com.growthos.app.ui.theme.MonoFamily
 import java.text.SimpleDateFormat
@@ -61,13 +66,18 @@ fun SampleListScreen(
         factory = SampleListViewModel.Factory(container.sampleRepository, domainId)
     )
     val state by vm.uiState.collectAsStateWithLifecycle()
+    var filterSheetOpen by remember { mutableStateOf(false) }
 
     SampleListContent(
         state = state,
         onBack = onBack,
         onOpenSample = onOpenSample,
         onErrorTypeSelect = vm::filterByErrorType,
-        onAttributionSelect = vm::filterByAttribution
+        onAttributionSelect = vm::filterByAttribution,
+        onClearFilter = vm::clearFilter,
+        onOpenFilter = { filterSheetOpen = true },
+        filterSheetOpen = filterSheetOpen,
+        onDismissFilterSheet = { filterSheetOpen = false }
     )
 }
 
@@ -78,7 +88,11 @@ fun SampleListContent(
     onBack: () -> Unit,
     onOpenSample: (Long) -> Unit,
     onErrorTypeSelect: (Long?) -> Unit,
-    onAttributionSelect: (Attribution?) -> Unit
+    onAttributionSelect: (Attribution?) -> Unit,
+    onClearFilter: () -> Unit = {},
+    onOpenFilter: () -> Unit = {},
+    filterSheetOpen: Boolean = false,
+    onDismissFilterSheet: () -> Unit = {}
 ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -104,14 +118,44 @@ fun SampleListContent(
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
         ) {
-            SampleFilterBar(
-                availableErrorTypes = state.availableErrorTypes,
-                filter = state.filter,
-                onErrorTypeSelect = onErrorTypeSelect,
-                onAttributionSelect = onAttributionSelect,
-                modifier = Modifier.padding(vertical = 4.dp)
-            )
-            LedgerRule(modifier = Modifier.padding(top = 4.dp))
+            // 筛选入口行(feature 2026-08-27):取代常驻 FilterBar,收进底部弹层。
+            val activeCount = listOfNotNull(state.filter.errorTypeId, state.filter.attribution).size
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "${state.filteredSamples.size} 条",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontFamily = MonoFamily
+                )
+                if (activeCount == 0) {
+                    Text(
+                        "筛选",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .clickable(onClick = onOpenFilter)
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    )
+                } else {
+                    Text(
+                        "筛选 · $activeCount 项",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.background,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(MaterialTheme.colorScheme.onBackground)
+                            .clickable(onClick = onOpenFilter)
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    )
+                }
+            }
 
             if (state.filteredSamples.isEmpty()) {
                 Text(
@@ -130,6 +174,19 @@ fun SampleListContent(
             Spacer(Modifier.height(32.dp))
         }
     }
+
+    SampleFilterSheet(
+        visible = filterSheetOpen,
+        availableErrorTypes = state.availableErrorTypes,
+        filter = state.filter.errorTypeId to state.filter.attribution,
+        errorTypeName = { id ->
+            state.availableErrorTypes.firstOrNull { it.errorTypeId == id }?.errorTypeName
+        },
+        onErrorTypeSelect = onErrorTypeSelect,
+        onAttributionSelect = onAttributionSelect,
+        onClearAll = onClearFilter,
+        onDismiss = onDismissFilterSheet
+    )
 }
 
 /** 紧凑样本行:时间 + 错误类型·归因 一行,结果一行。不展示复盘块,密度优先。 */
@@ -206,7 +263,8 @@ private fun SampleListContentDataPreview() {
                     )
                 )
             ),
-            onBack = {}, onOpenSample = {}, onErrorTypeSelect = {}, onAttributionSelect = {}
+            onBack = {}, onOpenSample = {}, onErrorTypeSelect = {}, onAttributionSelect = {},
+            onClearFilter = {}, onOpenFilter = {}
         )
     }
 }
@@ -217,7 +275,8 @@ private fun SampleListContentEmptyPreview() {
     GrowthOSTheme {
         SampleListContent(
             state = SampleListUiState(),
-            onBack = {}, onOpenSample = {}, onErrorTypeSelect = {}, onAttributionSelect = {}
+            onBack = {}, onOpenSample = {}, onErrorTypeSelect = {}, onAttributionSelect = {},
+            onClearFilter = {}, onOpenFilter = {}
         )
     }
 }

@@ -20,6 +20,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,9 +39,9 @@ import com.growthos.app.data.local.relation.ErrorTypeCount
 import com.growthos.app.data.local.relation.SampleWithErrorType
 import com.growthos.app.domain.model.Attribution
 import com.growthos.app.ui.components.LedgerMetric
-import com.growthos.app.ui.components.LedgerRule
 import com.growthos.app.ui.components.NextActionBlock
 import com.growthos.app.ui.components.PageHeader
+import com.growthos.app.ui.components.SectionCard
 import com.growthos.app.ui.theme.GrowthOSTheme
 import com.growthos.app.ui.theme.MonoFamily
 
@@ -65,17 +68,30 @@ fun WeeklyScreen(
         factory = WeeklyViewModel.Factory(container.sampleRepository, container.domainRepository)
     )
     val state by vm.uiState.collectAsStateWithLifecycle()
+    var scopeSheetOpen by remember { mutableStateOf(false) }
 
     WeeklyContent(
         state = state,
         onSelectDays = vm::selectDays,
         onSelectDomain = vm::selectDomain,
+        onOpenScope = { scopeSheetOpen = true },
         onNavigateToCreateTraining = onNavigateToCreateTraining,
         onNavigateToTrainingList = onNavigateToTrainingList,
         onNavigateToPrincipleList = onNavigateToPrincipleList,
         onNavigateToErrorTypes = onNavigateToErrorTypes,
         onNavigateToKnowledge = onNavigateToKnowledge,
         onNavigateToSettings = onNavigateToSettings
+    )
+
+    // 口径弹层(feature 2026-08-27):时间+领域收进 sheet,选中即时生效。
+    WeeklyScopeSheet(
+        visible = scopeSheetOpen,
+        days = state.days,
+        domainFilter = state.domainFilter,
+        availableDomains = state.availableDomains,
+        onSelectDays = vm::selectDays,
+        onSelectDomain = vm::selectDomain,
+        onDismiss = { scopeSheetOpen = false }
     )
 }
 
@@ -85,6 +101,7 @@ fun WeeklyContent(
     state: WeeklyUiState,
     onSelectDays: (Int) -> Unit,
     onSelectDomain: (DomainFilter) -> Unit,
+    onOpenScope: () -> Unit = {},
     onNavigateToCreateTraining: (Long) -> Unit = {},
     onNavigateToTrainingList: () -> Unit = {},
     onNavigateToPrincipleList: () -> Unit = {},
@@ -97,11 +114,40 @@ fun WeeklyContent(
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
     ) {
+        // 口径摘要入口(feature 2026-08-27):副标题可点,点开口径弹层。
+        val scopeSummary = buildString {
+            append("最近 ${state.days} 天 · ")
+            append(
+                (state.domainFilter as? DomainFilter.Single)
+                    ?.let { single -> state.availableDomains.firstOrNull { it.id == single.domainId }?.name }
+                    ?: "全部领域"
+            )
+        }
         PageHeader(
             eyebrow = "周复盘",
             title = "本周回顾",
-            subtitle = "最近 ${state.days} 天 · ${state.sampleCount} 条样本"
+            subtitle = null,
+            modifier = Modifier.clickable(onClick = onOpenScope)
         )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                scopeSummary,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                "▾",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
 
         // 阶段 5/6/7 + CRUD 补全:训练项 + 原则库 + 错误类型 + 设置入口。
         // 描边圆角小 tag,导航入口角色(与筛选 chips 区分)。FlowRow 允许窄屏换行。
@@ -119,155 +165,137 @@ fun WeeklyContent(
             SubEntry("设置", onNavigateToSettings)
         }
 
-        // F6 时间选择器 + F7 领域选择器(顶部 chips)
-        SelectorRow(
-            label = "时间范围",
-            chips = DAY_OPTIONS.map { days ->
-                SelectorChip(
-                    text = "${days} 天",
-                    selected = state.days == days,
-                    onClick = { onSelectDays(days) }
-                )
-            }
-        )
-        SelectorRow(
-            label = "领域",
-            chips = listOf(
-                SelectorChip(
-                    text = "全部",
-                    selected = state.domainFilter is DomainFilter.All,
-                    onClick = { onSelectDomain(DomainFilter.All) }
-                )
-            ) + state.availableDomains.map { domain ->
-                SelectorChip(
-                    text = domain.name,
-                    selected = (state.domainFilter as? DomainFilter.Single)?.domainId == domain.id,
-                    onClick = { onSelectDomain(DomainFilter.Single(domain.id)) }
-                )
-            }
-        )
-        LedgerRule()
+        // F6 时间 + F7 领域:已收进口径弹层(点副标题摘要打开),不再常驻 chips。
 
-        // F1 样本数 + F3 可控占比 并排
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-        ) {
-            LedgerMetric(
-                value = state.sampleCount.toString(),
-                label = "本周样本",
-                modifier = Modifier.weight(1f)
-            )
-            LedgerMetric(
-                value = formatRatio(state.controllableRatio),
-                label = "可控占比",
-                modifier = Modifier.weight(1f),
-                accent = true
-            )
+        // F1 样本数 + F3 可控占比 并排(共居一卡)
+        Spacer(Modifier.height(20.dp))
+        SectionCard {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+            ) {
+                LedgerMetric(
+                    value = state.sampleCount.toString(),
+                    label = "本周样本",
+                    modifier = Modifier.weight(1f)
+                )
+                LedgerMetric(
+                    value = formatRatio(state.controllableRatio),
+                    label = "可控占比",
+                    modifier = Modifier.weight(1f),
+                    accent = true
+                )
+            }
         }
-        LedgerRule(modifier = Modifier.padding(horizontal = 20.dp))
 
         // F2 高频错误前三
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            SectionTitle("高频错误前三")
-            Spacer(Modifier.height(4.dp))
-            if (state.topErrors.isEmpty()) {
-                EmptyHint("还没有样本")
-            } else {
-                state.topErrors.forEachIndexed { i, error ->
-                    Surface(
-                        onClick = { onNavigateToCreateTraining(error.errorTypeId) },
-                        color = MaterialTheme.colorScheme.background,
-                        contentColor = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+        Spacer(Modifier.height(20.dp))
+        SectionCard {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                SectionTitle("高频错误前三")
+                Spacer(Modifier.height(4.dp))
+                if (state.topErrors.isEmpty()) {
+                    EmptyHint("还没有样本")
+                } else {
+                    state.topErrors.forEachIndexed { i, error ->
+                        Surface(
+                            onClick = { onNavigateToCreateTraining(error.errorTypeId) },
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = MaterialTheme.colorScheme.onBackground,
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        "${i + 1}",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontFamily = MonoFamily,
+                                        modifier = Modifier.padding(end = 12.dp)
+                                    )
+                                    Text(
+                                        error.errorTypeName,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onBackground
+                                    )
+                                }
                                 Text(
-                                    "${i + 1}",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontFamily = MonoFamily,
-                                    modifier = Modifier.padding(end = 12.dp)
-                                )
-                                Text(
-                                    error.errorTypeName,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.onBackground
+                                    "${error.count} 次",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontFamily = MonoFamily
                                 )
                             }
-                            Text(
-                                "${error.count} 次",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontFamily = MonoFamily
-                            )
                         }
                     }
                 }
             }
         }
-        LedgerRule(modifier = Modifier.padding(horizontal = 20.dp))
 
         // F4 情绪强度最高
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            SectionTitle("情绪强度最高")
-            Spacer(Modifier.height(4.dp))
-            val emo = state.highestEmotion
-            if (emo == null) {
-                EmptyHint("本周无情绪记录")
-            } else {
-                Text(
-                    "${emo.errorTypeName}(情绪 ${emo.sample.emotionIntensity}/5)",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    "建议回顾当时的触发点与身体反应",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+        Spacer(Modifier.height(20.dp))
+        SectionCard {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                SectionTitle("情绪强度最高")
+                Spacer(Modifier.height(4.dp))
+                val emo = state.highestEmotion
+                if (emo == null) {
+                    EmptyHint("本周无情绪记录")
+                } else {
+                    Text(
+                        "${emo.errorTypeName}(情绪 ${emo.sample.emotionIntensity}/5)",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        "建议回顾当时的触发点与身体反应",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
-        LedgerRule(modifier = Modifier.padding(horizontal = 20.dp))
 
         // F5 建议关注:本页唯一的强调区块
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp)
-        ) {
-            SectionTitle("建议关注")
-            Spacer(Modifier.height(10.dp))
-            val suggested = state.suggestedError
-            if (suggested == null) {
-                EmptyHint("本周无可控错误,继续保持")
-            } else {
-                Surface(
-                    onClick = { onNavigateToCreateTraining(suggested.errorTypeId) },
-                    color = MaterialTheme.colorScheme.background,
-                    contentColor = MaterialTheme.colorScheme.onBackground
-                ) {
-                    NextActionBlock(
-                        label = "高频可控错误",
-                        text = "「${suggested.errorTypeName}」本周可控出现 ${suggested.count} 次,建议创建专项训练项。"
-                    )
+        Spacer(Modifier.height(20.dp))
+        SectionCard {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 16.dp)
+            ) {
+                SectionTitle("建议关注")
+                Spacer(Modifier.height(10.dp))
+                val suggested = state.suggestedError
+                if (suggested == null) {
+                    EmptyHint("本周无可控错误,继续保持")
+                } else {
+                    Surface(
+                        onClick = { onNavigateToCreateTraining(suggested.errorTypeId) },
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onBackground
+                    ) {
+                        NextActionBlock(
+                            label = "高频可控错误",
+                            text = "「${suggested.errorTypeName}」本周可控出现 ${suggested.count} 次,建议创建专项训练项。"
+                        )
+                    }
                 }
             }
         }
@@ -280,56 +308,6 @@ fun WeeklyContent(
 private fun formatRatio(ratio: ControllableRatio?): String =
     if (ratio == null || ratio.total == 0) "—"
     else "${(ratio.controllable * 100 / ratio.total)}%"
-
-@Composable
-@OptIn(ExperimentalLayoutApi::class)
-private fun SelectorRow(label: String, chips: List<SelectorChip>) {
-    // 垂直结构:小标题独占一行(对齐领域页 SectionLabel 角色),chips 独占一行流式排列。
-    // 不再把 Eyebrow 与 chips 挤同一行——领域多时 chips 换行会让"两小字拖一大串"头轻脚重。
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 10.dp)
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Spacer(Modifier.height(8.dp))
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            chips.forEach { it.Content() }
-        }
-    }
-}
-
-/** 单个选择项:文案 + 选中态 + 点击回调。用类封装便于批量构造。 */
-private class SelectorChip(
-    val text: String,
-    val selected: Boolean,
-    val onClick: () -> Unit
-) {
-    @Composable
-    fun Content() {
-        val bg = if (selected) MaterialTheme.colorScheme.onBackground
-        else MaterialTheme.colorScheme.surfaceVariant
-        val fg = if (selected) MaterialTheme.colorScheme.background
-        else MaterialTheme.colorScheme.onSurfaceVariant
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelLarge,
-            color = fg,
-            modifier = Modifier
-                .background(bg)
-                .clickable(onClick = onClick)
-                .padding(horizontal = 14.dp, vertical = 8.dp)
-        )
-    }
-}
 
 @Composable
 private fun EmptyHint(text: String) {
@@ -371,7 +349,6 @@ private fun SubEntry(text: String, onClick: () -> Unit) {
     )
 }
 
-private val DAY_OPTIONS = listOf(7, 14, 30)
 
 // ---------- Previews ----------
 

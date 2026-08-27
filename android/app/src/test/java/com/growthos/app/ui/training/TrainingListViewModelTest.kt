@@ -57,13 +57,32 @@ class TrainingListViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     private fun newVm(dao: FakeTrainingDao): TrainingListViewModel =
-        TrainingListViewModel(TrainingRepository(dao))
+        TrainingListViewModel(TrainingRepository(dao), DomainRepository(FakeDomainDao()))
 
     @Test
     fun `empty list yields empty state`() = runTest(testDispatcher) {
         val vm = newVm(FakeTrainingDao())
         advanceUntilIdle()
         assertTrue(vm.uiState.value.isEmpty)
+    }
+
+    @Test
+    fun `domain filter narrows list and null restores all`() = runTest(testDispatcher) {
+        val dao = FakeTrainingDao()
+        dao.insert(makeTraining(1L, e1, status = TrainingStatus.IN_PROGRESS, startedAt = 100L, id = 1))
+        dao.insert(makeTraining(2L, e1, status = TrainingStatus.IN_PROGRESS, startedAt = 200L, id = 2))
+        val vm = newVm(dao)
+        advanceUntilIdle()
+        assertEquals(2, vm.uiState.value.filteredTrainings.size)
+
+        vm.filterByDomain(1L)
+        advanceUntilIdle()
+        assertEquals(1, vm.uiState.value.filteredTrainings.size)
+        assertEquals(1L, vm.uiState.value.filteredTrainings.first().training.domainId)
+
+        vm.filterByDomain(null)
+        advanceUntilIdle()
+        assertEquals(2, vm.uiState.value.filteredTrainings.size)
     }
 
     @Test

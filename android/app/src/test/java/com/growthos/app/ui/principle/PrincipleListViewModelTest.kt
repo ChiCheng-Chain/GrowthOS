@@ -163,6 +163,13 @@ internal class FakePrincipleDao : PrincipleDao {
     fun seedDomain(id: Long, name: String) { domains[id] = name }
     fun seedErrorType(id: Long, name: String) { errorTypes[id] = name }
 
+    // 导入 feature 扩展,Fake 不涉及,空实现。
+    override suspend fun insertAll(principles: List<Principle>) {}
+
+    override suspend fun deleteAll() {}
+
+    override suspend fun countAll(): Int = 0
+
     override suspend fun insert(principle: Principle): Long {
         val id = if (principle.id == 0L) { counter += 1; counter } else principle.id
         all.update { it + principle.copy(id = id) }
@@ -206,6 +213,13 @@ internal class FakeDomainDao : DomainDao {
         all.update { it + Domain(id = id, name = name, createdAt = 0, hidden = false) }
     }
 
+    // 导入 feature 扩展,Fake 不涉及,空实现。
+    override suspend fun insertAll(domains: List<Domain>) {}
+
+    override suspend fun deleteAll() {}
+
+    override suspend fun countAll(): Int = 0
+
     override suspend fun insert(domain: Domain): Long {
         all.update { it + domain }
         return domain.id
@@ -231,6 +245,13 @@ internal class FakeErrorTypeDao : ErrorTypeDao {
     fun seed(id: Long, name: String) {
         all.update { it + ErrorType(id = id, name = name, createdAt = 0) }
     }
+
+    // 导入 feature 扩展,Fake 不涉及,空实现。
+    override suspend fun insertAll(errorTypes: List<ErrorType>) {}
+
+    override suspend fun deleteAll() {}
+
+    override suspend fun countAll(): Int = 0
 
     override suspend fun insert(errorType: ErrorType): Long {
         all.update { it + errorType }

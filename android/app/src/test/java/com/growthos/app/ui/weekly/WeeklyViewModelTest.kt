@@ -262,6 +262,13 @@ private class FakeSampleDao : SampleDao {
     private val all = MutableStateFlow<List<Sample>>(emptyList())
     private var counter = 0L
 
+    // 导入 feature 扩展,Fake 不涉及,空实现。
+    override suspend fun insertAll(samples: List<Sample>) {}
+
+    override suspend fun deleteAll() {}
+
+    override suspend fun countAll(): Int = 0
+
     override suspend fun insert(sample: Sample): Long {
         val id = if (sample.id == 0L) { counter += 1; counter } else sample.id
         all.update { it + sample.copy(id = id) }
@@ -348,6 +355,13 @@ private class FakeSampleDao : SampleDao {
 /** 内存假 DomainDao:只实现 insert + observeVisible。 */
 private class FakeDomainDao : DomainDao {
     private val all = MutableStateFlow<List<Domain>>(emptyList())
+
+    // 导入 feature 扩展,Fake 不涉及,空实现。
+    override suspend fun insertAll(domains: List<Domain>) {}
+
+    override suspend fun deleteAll() {}
+
+    override suspend fun countAll(): Int = 0
 
     override suspend fun insert(domain: Domain): Long {
         all.update { it + domain }

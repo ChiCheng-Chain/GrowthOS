@@ -243,6 +243,13 @@ private class FakeSampleDao : SampleDao {
     private val all = MutableStateFlow<List<Sample>>(emptyList())
     private var counter = 0L
 
+    // 导入 feature 扩展,Fake 不涉及,空实现。
+    override suspend fun insertAll(samples: List<Sample>) {}
+
+    override suspend fun deleteAll() {}
+
+    override suspend fun countAll(): Int = 0
+
     override suspend fun insert(sample: Sample): Long {
         val id = if (sample.id == 0L) { counter += 1; counter } else sample.id
         all.update { it + sample.copy(id = id) }
@@ -325,6 +332,13 @@ private class FakeTrainingDao : TrainingDao {
 
     fun nextId(): Long { counter += 1; return counter }
 
+    // 导入 feature 扩展,Fake 不涉及,空实现。
+    override suspend fun insertAll(trainings: List<Training>) {}
+
+    override suspend fun deleteAll() {}
+
+    override suspend fun countAll(): Int = 0
+
     override suspend fun insert(training: Training): Long {
         val id = if (training.id == 0L) nextId() else training.id
         all.update { it + training.copy(id = id) }
@@ -369,6 +383,13 @@ private class FakeTrainingDao : TrainingDao {
 private class FakePrincipleDao : PrincipleDao {
     private val all = MutableStateFlow<List<Principle>>(emptyList())
 
+    // 导入 feature 扩展,Fake 不涉及,空实现。
+    override suspend fun insertAll(principles: List<Principle>) {}
+
+    override suspend fun deleteAll() {}
+
+    override suspend fun countAll(): Int = 0
+
     override suspend fun insert(principle: Principle): Long {
         all.update { it + principle }
         return principle.id
@@ -395,6 +416,13 @@ private class FakePrincipleDao : PrincipleDao {
 /** 内存假 KnowledgeDao:DomainStatsViewModel 用到 observeByDomain,其余留空。 */
 internal class FakeKnowledgeDao : KnowledgeDao {
     private val all = MutableStateFlow<List<Knowledge>>(emptyList())
+
+    // 导入 feature 扩展,Fake 不涉及,空实现。
+    override suspend fun insertAll(knowledges: List<Knowledge>) {}
+
+    override suspend fun deleteAll() {}
+
+    override suspend fun countAll(): Int = 0
 
     override suspend fun insert(knowledge: Knowledge): Long {
         all.update { it + knowledge }

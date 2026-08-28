@@ -215,6 +215,13 @@ private class FakeDomainDao : DomainDao {
         }
     }
 
+    // 导入 feature 扩展,Fake 不涉及,空实现。
+    override suspend fun insertAll(domains: List<Domain>) {}
+
+    override suspend fun deleteAll() {}
+
+    override suspend fun countAll(): Int = 0
+
     override suspend fun insert(domain: Domain): Long {
         // Repository.create 传进来的 Domain id=0(自增占位),分配真实 id。
         val id = if (domain.id == 0L) nextId() else domain.id

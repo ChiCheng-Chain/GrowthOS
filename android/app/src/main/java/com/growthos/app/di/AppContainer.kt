@@ -3,6 +3,8 @@ package com.growthos.app.di
 import android.content.Context
 import com.growthos.app.data.export.DataExporter
 import com.growthos.app.data.export.DataExporterImpl
+import com.growthos.app.data.export.DataImporter
+import com.growthos.app.data.export.DataImporterImpl
 import com.growthos.app.data.local.GrowthOSDatabase
 import com.growthos.app.data.local.SelectedDomainStore
 import com.growthos.app.data.local.SelectedDomainStoreImpl
@@ -45,5 +47,10 @@ class AppContainer(private val context: Context) {
             principleRepository = principleRepository,
             knowledgeRepository = knowledgeRepository
         )
+    }
+
+    /** 导入 feature 2026-08-27:清库重建走事务直连六 DAO,复用同一 database。懒加载。 */
+    val dataImporter: DataImporter by lazy {
+        DataImporterImpl(database)
     }
 }

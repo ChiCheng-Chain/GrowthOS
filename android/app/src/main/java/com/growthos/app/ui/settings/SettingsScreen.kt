@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material.icons.outlined.FileUpload
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -22,6 +24,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -39,6 +42,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.growthos.app.GrowthOSApp
+import com.growthos.app.data.export.ImportCounts
+import com.growthos.app.data.export.ImportPreview
+import com.growthos.app.data.export.TableCounts
 import com.growthos.app.ui.components.Eyebrow
 import com.growthos.app.ui.components.LedgerRule
 import com.growthos.app.ui.theme.GrowthOSTheme
@@ -48,11 +54,13 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * 设置页(阶段 7 / 需求 F1)。
+ * 设置页(阶段 7 / 需求 F1;导入 feature 2026-08-27 扩展)。
  *
- * 周复盘页顶部入口进入。本阶段只含「导出数据」(R-013),为后续关于 / 主题扩展预留。
+ * 周复盘页顶部入口进入。「数据」分组含导出/导入两行(BR-8)。
  * 导出走 SAF CreateDocument:点「导出数据」→ vm 生成 JSON → emit Ready →
  * 启动系统文件保存选择器 → 用户选位置命名 → 写入 Uri → 提示结果。
+ * 导入走 SAF OpenDocument:点「导入数据」→ 选 .json 文件 → 读文本喂 vm.import →
+ * Parsing → Confirming 弹双向对照确认框(BR-7)→ 确认 → Importing → 成功/失败提示。
  */
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,7 +68,7 @@ fun SettingsScreen(
     onBack: () -> Unit
 ) {
     val container = (LocalContext.current.applicationContext as GrowthOSApp).container
-    val vm: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory(container.dataExporter))
+    val vm: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory(container.dataExporter, container.dataImporter))
     val state by vm.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -85,6 +93,20 @@ fun SettingsScreen(
         }
     }
 
+    // SAF 文件选择器(BR-10):选既有 .json 备份 → 读文本喂 vm.import。
+    // 取消选择器 = 无操作(uri == null 静默,不进状态机)。
+    val openDocumentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val text = readTextFromUri(context, uri)
+        if (text == null) {
+            vm.import("")
+        } else {
+            vm.import(text)
+        }
+    }
+
     // 检测 Ready:捕获 json,启动 launcher。必须在 LaunchedEffect 中调,不能在组合期直接调。
     // 用 launcherArmed 防重组时重复触发。
     LaunchedEffect(state.exportState) {
@@ -96,7 +118,22 @@ fun SettingsScreen(
         }
     }
 
-    // 终态提示(Success / Failed)→ Snackbar,提示后复位。
+    // 导入终态提示(Success / Failed)→ Snackbar,提示后复位(BR-6/BR-9)。
+    LaunchedEffect(state.importState) {
+        when (val s = state.importState) {
+            is ImportState.Success -> {
+                snackbarHostState.showSnackbar(importSuccessMessage(s.counts))
+                vm.reset()
+            }
+            is ImportState.Failed -> {
+                snackbarHostState.showSnackbar(s.reason)
+                vm.reset()
+            }
+            else -> {}
+        }
+    }
+
+    // 导出终态提示(Success / Failed)→ Snackbar,提示后复位。
     LaunchedEffect(state.exportState) {
         when (val s = state.exportState) {
             is ExportState.Success -> {
@@ -111,10 +148,21 @@ fun SettingsScreen(
         }
     }
 
+    // 确认框(BR-2/BR-7):Confirming 时弹出,双向对照当前库与备份文件。
+    val confirming = state.importState as? ImportState.Confirming
+    if (confirming != null) {
+        ImportConfirmDialog(
+            preview = confirming.preview,
+            onConfirm = vm::onImportConfirmed,
+            onDismiss = vm::onImportCancelled
+        )
+    }
+
     SettingsContent(
         state = state,
         onBack = onBack,
         onExport = vm::export,
+        onImport = { openDocumentLauncher.launch(arrayOf("application/json")) },
         snackbarHostState = snackbarHostState
     )
 }
@@ -125,6 +173,7 @@ private fun SettingsContent(
     state: SettingsUiState,
     onBack: () -> Unit,
     onExport: () -> Unit,
+    onImport: () -> Unit,
     snackbarHostState: SnackbarHostState
 ) {
     Scaffold(
@@ -154,13 +203,30 @@ private fun SettingsContent(
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)
             )
 
+            // 互斥派生(设计 D6 / BR-8):导出中(含 Ready)禁导入;导入中(含解析/确认框)禁导出
             val exporting = state.exportState is ExportState.Exporting ||
                 state.exportState is ExportState.Ready
-            ExportRow(
+            val importing = state.importState is ImportState.Parsing ||
+                state.importState is ImportState.Confirming ||
+                state.importState is ImportState.Importing
+
+            DataActionRow(
                 title = "导出数据",
                 subtitle = "导出全部领域 / 样本 / 错误类型 / 训练项 / 原则为 JSON",
-                enabled = !exporting,
+                icon = Icons.Outlined.FileDownload,
+                busy = exporting,
+                busyLabel = "导出中",
+                enabled = !exporting && !importing,
                 onClick = onExport
+            )
+            DataActionRow(
+                title = "导入数据",
+                subtitle = "从导出的 JSON 备份恢复全部数据(替换现有)",
+                icon = Icons.Outlined.FileUpload,
+                busy = importing,
+                busyLabel = "导入中",
+                enabled = !exporting && !importing,
+                onClick = onImport
             )
             LedgerRule(modifier = Modifier.padding(horizontal = 20.dp))
 
@@ -169,10 +235,14 @@ private fun SettingsContent(
     }
 }
 
+/** 数据分组通用行(原 ExportRow 泛化:导入行复用同一形态,BR-8)。 */
 @Composable
-private fun ExportRow(
+private fun DataActionRow(
     title: String,
     subtitle: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    busy: Boolean,
+    busyLabel: String,
     enabled: Boolean,
     onClick: () -> Unit
 ) {
@@ -190,7 +260,7 @@ private fun ExportRow(
             horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Icon(
-                Icons.Outlined.FileDownload,
+                icon,
                 contentDescription = null,
                 tint = if (enabled) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurfaceVariant
@@ -212,7 +282,7 @@ private fun ExportRow(
             }
             if (!enabled) {
                 Text(
-                    "导出中",
+                    busyLabel,
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontFamily = MonoFamily
@@ -221,6 +291,56 @@ private fun ExportRow(
         }
     }
 }
+
+/** 导入确认框(BR-2/BR-7):双向对照 + 明示替换不可逆。 */
+@Composable
+private fun ImportConfirmDialog(
+    preview: ImportPreview,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("导入备份", fontWeight = FontWeight.SemiBold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "导入将替换本机当前全部数据,此操作不可撤销。",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    "当前本机:${countsLine(preview.currentCounts)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    "备份文件:${countsLine(preview.backupCounts)}(v${preview.version},导出于 ${formatExportedAt(preview.exportedAt)})",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("替换现有数据", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        }
+    )
+}
+
+/** 「N 样本 / M 领域 / K 训练项…」计数行(BR-6/BR-7 共用)。 */
+private fun countsLine(c: TableCounts): String =
+    "${c.samples} 样本 / ${c.domains} 领域 / ${c.trainings} 训练项 / ${c.principles} 原则 / ${c.knowledges} 知识"
+
+/** 成功提示:「已导入:N 样本 / M 领域…」(BR-6)。 */
+private fun importSuccessMessage(counts: ImportCounts): String =
+    "已导入:${countsLine(counts.tableCounts)}"
+
+private fun formatExportedAt(millis: Long): String =
+    SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(millis))
 
 /** 默认文件名:growthos-export-yyyyMMdd-HHmmss.json。 */
 private fun defaultFileName(): String {
@@ -240,6 +360,15 @@ private fun writeJsonToUri(context: Context, uri: android.net.Uri, json: String?
     }
 }
 
+/** 从用户选定的 Uri 读全部文本(导入路径)。读不出返回 null。 */
+private fun readTextFromUri(context: Context, uri: android.net.Uri): String? = try {
+    context.contentResolver.openInputStream(uri)?.use { input ->
+        input.readBytes().toString(Charsets.UTF_8)
+    }
+} catch (t: Throwable) {
+    null
+}
+
 // ---------- Previews ----------
 
 @Preview(name = "设置(空闲)", showBackground = true, heightDp = 600)
@@ -247,8 +376,8 @@ private fun writeJsonToUri(context: Context, uri: android.net.Uri, json: String?
 private fun SettingsIdlePreview() {
     GrowthOSTheme {
         SettingsContent(
-            state = SettingsUiState(ExportState.Idle),
-            onBack = {}, onExport = {},
+            state = SettingsUiState(),
+            onBack = {}, onExport = {}, onImport = {},
             snackbarHostState = remember { SnackbarHostState() }
         )
     }
@@ -259,8 +388,20 @@ private fun SettingsIdlePreview() {
 private fun SettingsExportingPreview() {
     GrowthOSTheme {
         SettingsContent(
-            state = SettingsUiState(ExportState.Exporting),
-            onBack = {}, onExport = {},
+            state = SettingsUiState(exportState = ExportState.Exporting),
+            onBack = {}, onExport = {}, onImport = {},
+            snackbarHostState = remember { SnackbarHostState() }
+        )
+    }
+}
+
+@Preview(name = "设置(导入中)", showBackground = true, heightDp = 600)
+@Composable
+private fun SettingsImportingPreview() {
+    GrowthOSTheme {
+        SettingsContent(
+            state = SettingsUiState(importState = ImportState.Importing),
+            onBack = {}, onExport = {}, onImport = {},
             snackbarHostState = remember { SnackbarHostState() }
         )
     }

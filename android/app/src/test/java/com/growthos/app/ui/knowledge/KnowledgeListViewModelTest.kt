@@ -99,6 +99,13 @@ internal class FakeKnowledgeDao : KnowledgeDao {
 
     fun seed(k: Knowledge) { all.update { it + k } }
 
+    // 导入 feature 扩展,Fake 不涉及,空实现。
+    override suspend fun insertAll(knowledges: List<Knowledge>) {}
+
+    override suspend fun deleteAll() {}
+
+    override suspend fun countAll(): Int = 0
+
     override suspend fun insert(knowledge: Knowledge): Long {
         all.update { it + knowledge }
         return knowledge.id
@@ -130,6 +137,13 @@ internal class FakeKnowledgeDao : KnowledgeDao {
 /** 内存假 DomainDao,只实现 observeVisible(筛选条用)。 */
 internal class FakeDomainDaoForList : DomainDao {
     private val all = MutableStateFlow<List<Domain>>(emptyList())
+
+    // 导入 feature 扩展,Fake 不涉及,空实现。
+    override suspend fun insertAll(domains: List<Domain>) {}
+
+    override suspend fun deleteAll() {}
+
+    override suspend fun countAll(): Int = 0
 
     override suspend fun insert(domain: Domain): Long {
         all.update { it + domain }

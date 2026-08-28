@@ -399,6 +399,13 @@ private class FakeSampleDao : SampleDao {
     val all = MutableStateFlow<List<Sample>>(emptyList())
     private var counter = 0L
 
+    // 导入 feature 扩展,Fake 不涉及,空实现。
+    override suspend fun insertAll(samples: List<Sample>) {}
+
+    override suspend fun deleteAll() {}
+
+    override suspend fun countAll(): Int = 0
+
     override suspend fun insert(sample: Sample): Long {
         val id = if (sample.id == 0L) { counter += 1; counter } else sample.id
         all.update { it + sample.copy(id = id) }
@@ -474,6 +481,13 @@ private class FakeErrorTypeDao(
         }
     }
 
+    // 导入 feature 扩展,Fake 不涉及,空实现。
+    override suspend fun insertAll(errorTypes: List<ErrorType>) {}
+
+    override suspend fun deleteAll() {}
+
+    override suspend fun countAll(): Int = 0
+
     override suspend fun insert(errorType: ErrorType): Long {
         // 模拟真 DAO 的 INSERT OR IGNORE + 唯一索引:重名返回 -1。
         if (all.value.any { it.name == errorType.name }) return -1L
@@ -507,6 +521,13 @@ private class FakeDomainDao : DomainDao {
             if (idx >= 0) list.toMutableList().apply { set(idx, domain) } else list + domain
         }
     }
+
+    // 导入 feature 扩展,Fake 不涉及,空实现。
+    override suspend fun insertAll(domains: List<Domain>) {}
+
+    override suspend fun deleteAll() {}
+
+    override suspend fun countAll(): Int = 0
 
     override suspend fun insert(domain: Domain): Long {
         val id = if (domain.id == 0L) nextId() else domain.id

@@ -213,6 +213,13 @@ internal class FakeTrainingDao : TrainingDao {
     /** 供 effectStats 计数的样本来源(测试注入 FakeSampleDao.all)。 */
     var sampleProvider: () -> List<Sample> = { emptyList() }
 
+    // 导入 feature 扩展,Fake 不涉及,空实现。
+    override suspend fun insertAll(trainings: List<Training>) {}
+
+    override suspend fun deleteAll() {}
+
+    override suspend fun countAll(): Int = 0
+
     override suspend fun insert(training: Training): Long {
         val id = if (training.id == 0L) { counter += 1; counter } else training.id
         all.update { it + training.copy(id = id) }
@@ -271,6 +278,13 @@ internal class FakeSampleDao : SampleDao {
     internal val all = MutableStateFlow<List<Sample>>(emptyList())
     private var counter = 0L
 
+    // 导入 feature 扩展,Fake 不涉及,空实现。
+    override suspend fun insertAll(samples: List<Sample>) {}
+
+    override suspend fun deleteAll() {}
+
+    override suspend fun countAll(): Int = 0
+
     override suspend fun insert(sample: Sample): Long {
         val id = if (sample.id == 0L) { counter += 1; counter } else sample.id
         all.update { it + sample.copy(id = id) }
@@ -320,6 +334,13 @@ internal class FakeErrorTypeDao : ErrorTypeDao {
         all.update { it + ErrorType(id = id, name = name, createdAt = 0) }
     }
 
+    // 导入 feature 扩展,Fake 不涉及,空实现。
+    override suspend fun insertAll(errorTypes: List<ErrorType>) {}
+
+    override suspend fun deleteAll() {}
+
+    override suspend fun countAll(): Int = 0
+
     override suspend fun insert(errorType: ErrorType): Long {
         all.update { it + errorType }
         return errorType.id
@@ -348,6 +369,13 @@ internal class FakeDomainDao : DomainDao {
     fun seed(id: Long, name: String) {
         all.update { it + Domain(id = id, name = name, createdAt = 0, hidden = false) }
     }
+
+    // 导入 feature 扩展,Fake 不涉及,空实现。
+    override suspend fun insertAll(domains: List<Domain>) {}
+
+    override suspend fun deleteAll() {}
+
+    override suspend fun countAll(): Int = 0
 
     override suspend fun insert(domain: Domain): Long {
         all.update { it + domain }

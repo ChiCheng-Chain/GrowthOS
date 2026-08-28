@@ -164,6 +164,13 @@ class KnowledgeEditViewModelTest {
 private class FakeDomainDao : DomainDao {
     private val all = MutableStateFlow<List<Domain>>(emptyList())
 
+    // 导入 feature 扩展,Fake 不涉及,空实现。
+    override suspend fun insertAll(domains: List<Domain>) {}
+
+    override suspend fun deleteAll() {}
+
+    override suspend fun countAll(): Int = 0
+
     override suspend fun insert(domain: Domain): Long {
         all.update { it + domain }
         return domain.id

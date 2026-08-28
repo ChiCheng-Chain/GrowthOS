@@ -13,6 +13,18 @@ interface DomainDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(domain: Domain): Long
 
+    /** 导入用:批量插入,保持文件中的主键 id(2026-08-27 导入 feature)。 */
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertAll(domains: List<Domain>)
+
+    /** 导入用:当前库计数(parse 时双向对照数据)。 */
+    @Query("SELECT COUNT(*) FROM domains")
+    suspend fun countAll(): Int
+
+    /** 导入用:清库重建(与 insertAll 同事务,见 DataImporterImpl)。 */
+    @Query("DELETE FROM domains")
+    suspend fun deleteAll()
+
     @Update
     suspend fun update(domain: Domain)
 

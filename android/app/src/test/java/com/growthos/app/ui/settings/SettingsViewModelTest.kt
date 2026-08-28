@@ -6,6 +6,10 @@ import com.growthos.app.data.export.ImportCounts
 import com.growthos.app.data.export.ImportException
 import com.growthos.app.data.export.ImportPreview
 import com.growthos.app.data.export.TableCounts
+import com.growthos.app.data.local.ThemeStore
+import com.growthos.app.ui.theme.GrowthThemePreset
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -74,16 +78,27 @@ class SettingsViewModelTest {
         }
     }
 
+
+    /** 主题偏好桩:MutableStateFlow 驱动,记录写入。 */
+    private class FakeThemeStore(initial: GrowthThemePreset? = null) : ThemeStore {
+        val state = MutableStateFlow(initial)
+        override val flow: Flow<GrowthThemePreset?> = state
+        override suspend fun set(preset: GrowthThemePreset) {
+            state.value = preset
+        }
+    }
+
     private fun vm(
         exporter: DataExporter = FakeDataExporter(),
-        importer: DataImporter = FakeDataImporter()
-    ) = SettingsViewModel(exporter, importer)
+        importer: DataImporter = FakeDataImporter(),
+        themeStore: ThemeStore = FakeThemeStore()
+    ) = SettingsViewModel(exporter, importer, themeStore)
 
     // ---------- 导出(既有用例,Factory 适配双参数) ----------
 
     @Test
     fun `export emits Ready with json`() = runTest(testDispatcher) {
-        val vm = SettingsViewModel(FakeDataExporter(json = "PAYLOAD"), FakeDataImporter())
+        val vm = SettingsViewModel(FakeDataExporter(json = "PAYLOAD"), FakeDataImporter(), FakeThemeStore())
         assertEquals(ExportState.Idle, vm.uiState.value.exportState)
 
         vm.export()
@@ -96,7 +111,7 @@ class SettingsViewModelTest {
 
     @Test
     fun `export failure emits Failed`() = runTest(testDispatcher) {
-        val vm = SettingsViewModel(FakeDataExporter(throwOnExport = RuntimeException("disk")), FakeDataImporter())
+        val vm = SettingsViewModel(FakeDataExporter(throwOnExport = RuntimeException("disk")), FakeDataImporter(), FakeThemeStore())
 
         vm.export()
         advanceUntilIdle()
@@ -152,7 +167,7 @@ class SettingsViewModelTest {
 
     @Test
     fun `export while ready is ignored`() = runTest(testDispatcher) {
-        val vm = SettingsViewModel(FakeDataExporter(json = "FIRST"), FakeDataImporter())
+        val vm = SettingsViewModel(FakeDataExporter(json = "FIRST"), FakeDataImporter(), FakeThemeStore())
         vm.export()
         advanceUntilIdle()
         // 此时 Ready(FIRST)。再调 export 应被忽略(仍 Ready/FIRST,不重算)
@@ -169,7 +184,7 @@ class SettingsViewModelTest {
     @Test
     fun `import emits Confirming with preview`() = runTest(testDispatcher) {
         val fake = FakeDataImporter()
-        val vm = SettingsViewModel(FakeDataExporter(), fake)
+        val vm = SettingsViewModel(FakeDataExporter(), fake, FakeThemeStore())
 
         vm.import("JSON")
         advanceUntilIdle()
@@ -184,7 +199,8 @@ class SettingsViewModelTest {
     fun `import parse failure emits Failed with reason`() = runTest(testDispatcher) {
         val vm = SettingsViewModel(
             FakeDataExporter(),
-            FakeDataImporter(throwOnParse = ImportException("不支持的备份版本(v99)"))
+            FakeDataImporter(throwOnParse = ImportException("不支持的备份版本(v99)")),
+            FakeThemeStore()
         )
 
         vm.import("JSON")
@@ -199,7 +215,8 @@ class SettingsViewModelTest {
     fun `import unexpected exception emits Failed with prefix`() = runTest(testDispatcher) {
         val vm = SettingsViewModel(
             FakeDataExporter(),
-            FakeDataImporter(throwOnParse = RuntimeException("boom"))
+            FakeDataImporter(throwOnParse = RuntimeException("boom")),
+            FakeThemeStore()
         )
 
         vm.import("JSON")
@@ -213,7 +230,7 @@ class SettingsViewModelTest {
     @Test
     fun `onImportConfirmed transitions to Success with counts`() = runTest(testDispatcher) {
         val fake = FakeDataImporter()
-        val vm = SettingsViewModel(FakeDataExporter(), fake)
+        val vm = SettingsViewModel(FakeDataExporter(), fake, FakeThemeStore())
 
         vm.import("JSON")
         advanceUntilIdle()
@@ -230,7 +247,8 @@ class SettingsViewModelTest {
     fun `onImportConfirmed apply failure emits Failed`() = runTest(testDispatcher) {
         val vm = SettingsViewModel(
             FakeDataExporter(),
-            FakeDataImporter(throwOnApply = RuntimeException("sqlite"))
+            FakeDataImporter(throwOnApply = RuntimeException("sqlite")),
+            FakeThemeStore()
         )
 
         vm.import("JSON")
@@ -246,7 +264,7 @@ class SettingsViewModelTest {
     @Test
     fun `onImportCancelled returns to Idle without apply`() = runTest(testDispatcher) {
         val fake = FakeDataImporter()
-        val vm = SettingsViewModel(FakeDataExporter(), fake)
+        val vm = SettingsViewModel(FakeDataExporter(), fake, FakeThemeStore())
 
         vm.import("JSON")
         advanceUntilIdle()
@@ -261,7 +279,7 @@ class SettingsViewModelTest {
     @Test
     fun `onImportConfirmed outside Confirming is ignored`() = runTest(testDispatcher) {
         val fake = FakeDataImporter()
-        val vm = SettingsViewModel(FakeDataExporter(), fake)
+        val vm = SettingsViewModel(FakeDataExporter(), fake, FakeThemeStore())
 
         vm.onImportConfirmed() // Idle 态直接确认,应无效果
         advanceUntilIdle()
@@ -273,7 +291,7 @@ class SettingsViewModelTest {
     @Test
     fun `import while Confirming is ignored`() = runTest(testDispatcher) {
         val fake = FakeDataImporter()
-        val vm = SettingsViewModel(FakeDataExporter(), fake)
+        val vm = SettingsViewModel(FakeDataExporter(), fake, FakeThemeStore())
 
         vm.import("JSON")
         advanceUntilIdle()
@@ -304,7 +322,8 @@ class SettingsViewModelTest {
         val fakeImporter = FakeDataImporter()
         val vm = SettingsViewModel(
             FakeDataExporter(delayMs = 100),
-            fakeImporter
+            fakeImporter,
+            FakeThemeStore()
         )
         vm.export()
         advanceUntilIdle() // Exporting 中(export 挂在 delay)
@@ -319,7 +338,7 @@ class SettingsViewModelTest {
     @Test
     fun `import is ignored while export Ready`() = runTest(testDispatcher) {
         val fakeImporter = FakeDataImporter()
-        val vm = SettingsViewModel(FakeDataExporter(), fakeImporter)
+        val vm = SettingsViewModel(FakeDataExporter(), fakeImporter, FakeThemeStore())
         vm.export()
         advanceUntilIdle() // Ready
         assertTrue(vm.uiState.value.exportState is ExportState.Ready)
@@ -335,7 +354,8 @@ class SettingsViewModelTest {
         val fakeExporter = FakeDataExporter()
         val vm = SettingsViewModel(
             fakeExporter,
-            FakeDataImporter(parseDelayMs = 100)
+            FakeDataImporter(parseDelayMs = 100),
+            FakeThemeStore()
         )
         vm.import("JSON")
         advanceUntilIdle() // Parsing 中(parse 挂在 delay)
@@ -362,7 +382,7 @@ class SettingsViewModelTest {
     @Test
     fun `export is ignored while importing`() = runTest(testDispatcher) {
         val fakeImporter = FakeDataImporter(parseDelayMs = 0)
-        val vm = SettingsViewModel(FakeDataExporter(), fakeImporter)
+        val vm = SettingsViewModel(FakeDataExporter(), fakeImporter, FakeThemeStore())
         vm.import("JSON")
         advanceUntilIdle()
         vm.onImportConfirmed()
@@ -390,7 +410,50 @@ class SettingsViewModelTest {
         assertEquals(ExportState.Idle, vm.uiState.value.exportState)
         assertTrue("导入确认态不受导出复位影响", vm.uiState.value.importState is ImportState.Confirming)
     }
+
+    // ---------- 主题(设计 D4/D5,feature 2026-08-28) ----------
+
+    @Test
+    fun `theme flow mirrors store with default for null`() = runTest(testDispatcher) {
+        val store = FakeThemeStore(initial = null)
+        val vm = SettingsViewModel(FakeDataExporter(), FakeDataImporter(), store)
+        advanceUntilIdle()
+
+        assertEquals("无偏好应归一为默认", GrowthThemePreset.DEFAULT, vm.theme.value)
+
+        store.state.value = GrowthThemePreset.Blueprint
+        advanceUntilIdle()
+        assertEquals("store 更新应镜像到 theme", GrowthThemePreset.Blueprint, vm.theme.value)
+    }
+
+    @Test
+    fun `setTheme writes to store`() = runTest(testDispatcher) {
+        val store = FakeThemeStore(initial = GrowthThemePreset.Limestone)
+        val vm = SettingsViewModel(FakeDataExporter(), FakeDataImporter(), store)
+
+        vm.setTheme(GrowthThemePreset.Vermilion)
+        advanceUntilIdle()
+
+        assertEquals(GrowthThemePreset.Vermilion, store.state.value)
+        assertEquals("回声驱动 UI(非乐观更新)", GrowthThemePreset.Vermilion, vm.theme.value)
+    }
+
+    @Test
+    fun `reset does not clobber theme`() = runTest(testDispatcher) {
+        val store = FakeThemeStore(initial = GrowthThemePreset.PineSmoke)
+        val vm = SettingsViewModel(FakeDataExporter(), FakeDataImporter(), store)
+        advanceUntilIdle()
+
+        vm.export()
+        advanceUntilIdle()
+        vm.onConsumed()
+        vm.onWritten()
+        vm.reset()
+
+        assertEquals("reset 只复位导出/导入终态,不波及主题", GrowthThemePreset.PineSmoke, vm.theme.value)
+    }
 }
+
 
 private fun sampleCounts() = TableCounts(
     domains = 2, errorTypes = 8, samples = 34,

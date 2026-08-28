@@ -8,9 +8,14 @@ import com.growthos.app.data.export.DataImporter
 import com.growthos.app.data.export.ImportCounts
 import com.growthos.app.data.export.ImportException
 import com.growthos.app.data.export.ImportPreview
+import com.growthos.app.data.local.ThemeStore
+import com.growthos.app.ui.theme.GrowthThemePreset
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
@@ -77,11 +82,27 @@ data class SettingsUiState(
  */
 class SettingsViewModel(
     private val dataExporter: DataExporter,
-    private val dataImporter: DataImporter
+    private val dataImporter: DataImporter,
+    themeStore: ThemeStore
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
+
+    /**
+     * 当前主题(独立流,不并入 uiState——reset() 只复位导出/导入终态,
+     * 不应波及主题选择;设计 D4)。store.flow 镜像,null 归一为默认。
+     */
+    val theme: StateFlow<GrowthThemePreset> = themeStore.flow
+        .map { it ?: GrowthThemePreset.DEFAULT }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, GrowthThemePreset.DEFAULT)
+
+    private val themeWriter: ThemeStore = themeStore
+
+    /** 选择主题:写 store,回声驱动 UI(不做乐观更新,设计 D5)。 */
+    fun setTheme(preset: GrowthThemePreset) {
+        viewModelScope.launch { themeWriter.set(preset) }
+    }
 
     /** 触发导出:拉全量 → 组装 JSON → emit Ready 等 Screen 写入。导入进行中时忽略(互斥)。 */
     fun export() {
@@ -180,10 +201,11 @@ class SettingsViewModel(
 
     class Factory(
         private val dataExporter: DataExporter,
-        private val dataImporter: DataImporter
+        private val dataImporter: DataImporter,
+        private val themeStore: ThemeStore
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            SettingsViewModel(dataExporter, dataImporter) as T
+            SettingsViewModel(dataExporter, dataImporter, themeStore) as T
     }
 }

@@ -8,6 +8,8 @@ import com.growthos.app.data.export.DataImporterImpl
 import com.growthos.app.data.local.GrowthOSDatabase
 import com.growthos.app.data.local.SelectedDomainStore
 import com.growthos.app.data.local.SelectedDomainStoreImpl
+import com.growthos.app.data.local.ThemeStore
+import com.growthos.app.data.local.ThemeStoreImpl
 import com.growthos.app.data.repository.DomainRepository
 import com.growthos.app.data.repository.ErrorTypeRepository
 import com.growthos.app.data.repository.ErrorTypeRepositoryImpl
@@ -36,6 +38,9 @@ class AppContainer(private val context: Context) {
     val knowledgeRepository: KnowledgeRepository by lazy { KnowledgeRepository(database.knowledgeDao()) }
 
     val selectedDomainStore: SelectedDomainStore by lazy { SelectedDomainStoreImpl(context) }
+
+    /** 主题偏好(feature 2026-08-28):DataStore 进程级唯一,由容器持有。 */
+    val themeStore: ThemeStore by lazy { ThemeStoreImpl(context) }
 
     /** 阶段 7 导出:聚合六 Repository 拉全量(R-013)。懒加载,首次导出才构造。 */
     val dataExporter: DataExporter by lazy {

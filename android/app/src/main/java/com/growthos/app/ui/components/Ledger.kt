@@ -30,17 +30,44 @@ import com.growthos.app.ui.theme.MonoFamily
  * 让页面读起来像一本翻开的手册而非一堆浮层。
  */
 
-// 全宽发丝线
+/**
+ * 全宽发丝线。
+ *
+ * @param dashed 点线形态(蓝晒图主题签名:工程图标注线;feature 2026-08-28)
+ */
 @Composable
 fun LedgerRule(
     modifier: Modifier = Modifier,
-    color: Color = MaterialTheme.colorScheme.outline
+    color: Color = MaterialTheme.colorScheme.outline,
+    dashed: Boolean = false
 ) {
-    HorizontalDivider(
-        modifier = modifier.fillMaxWidth(),
-        thickness = 0.5.dp,
-        color = color
-    )
+    if (dashed) {
+        androidx.compose.foundation.Canvas(
+            modifier = modifier
+                .fillMaxWidth()
+                .height(1.dp)
+        ) {
+            val y = size.height / 2
+            val dash = 3.dp.toPx()
+            val gap = 2.dp.toPx()
+            var x = 0f
+            while (x < size.width) {
+                drawLine(
+                    color = color,
+                    start = Offset(x, y),
+                    end = Offset(minOf(x + dash, size.width), y),
+                    strokeWidth = 0.5.dp.toPx()
+                )
+                x += dash + gap
+            }
+        }
+    } else {
+        HorizontalDivider(
+            modifier = modifier.fillMaxWidth(),
+            thickness = 0.5.dp,
+            color = color
+        )
+    }
 }
 
 // 区块卡片:信息分层的"块"级容器(feature 2026-08-27 信息分层改造)。

@@ -3,13 +3,19 @@ package com.growthos.app.ui.settings
 import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.FileDownload
@@ -35,6 +41,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -48,6 +56,7 @@ import com.growthos.app.data.export.TableCounts
 import com.growthos.app.ui.components.Eyebrow
 import com.growthos.app.ui.components.LedgerRule
 import com.growthos.app.ui.theme.GrowthOSTheme
+import com.growthos.app.ui.theme.GrowthThemePreset
 import com.growthos.app.ui.theme.MonoFamily
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -68,8 +77,9 @@ fun SettingsScreen(
     onBack: () -> Unit
 ) {
     val container = (LocalContext.current.applicationContext as GrowthOSApp).container
-    val vm: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory(container.dataExporter, container.dataImporter))
+    val vm: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory(container.dataExporter, container.dataImporter, container.themeStore))
     val state by vm.uiState.collectAsStateWithLifecycle()
+    val theme by vm.theme.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -160,6 +170,8 @@ fun SettingsScreen(
 
     SettingsContent(
         state = state,
+        selectedTheme = theme,
+        onThemeSelect = vm::setTheme,
         onBack = onBack,
         onExport = vm::export,
         onImport = { openDocumentLauncher.launch(arrayOf("application/json")) },
@@ -171,6 +183,8 @@ fun SettingsScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 private fun SettingsContent(
     state: SettingsUiState,
+    selectedTheme: GrowthThemePreset,
+    onThemeSelect: (GrowthThemePreset) -> Unit,
     onBack: () -> Unit,
     onExport: () -> Unit,
     onImport: () -> Unit,
@@ -198,6 +212,17 @@ private fun SettingsContent(
                 .fillMaxWidth()
                 .padding(innerPadding)
         ) {
+            Eyebrow(
+                "外观",
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)
+            )
+
+            ThemePresetRow(
+                selected = selectedTheme,
+                onSelect = onThemeSelect
+            )
+            LedgerRule(modifier = Modifier.padding(horizontal = 20.dp))
+
             Eyebrow(
                 "数据",
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)
@@ -232,6 +257,97 @@ private fun SettingsContent(
 
             Spacer(Modifier.height(32.dp))
         }
+    }
+}
+
+/**
+ * 主题样张行(BR-8/BR-9):横向滚动的预设卡。
+ * 色样取各 preset.palette.light 原始值(未选中主题也显示自己的纸色),
+ * 选中态描边用当前 scheme 的 primary。点选立即全局生效(经 ThemeStore 回声)。
+ */
+@Composable
+private fun ThemePresetRow(
+    selected: GrowthThemePreset,
+    onSelect: (GrowthThemePreset) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        GrowthThemePreset.entries.forEach { preset ->
+            ThemeSwatchCard(
+                preset = preset,
+                selected = preset == selected,
+                onClick = { onSelect(preset) },
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+/** 单张主题样张:纸色块 + accent 细竖线 + 名称,直角无阴影(账本范式)。 */
+@Composable
+private fun ThemeSwatchCard(
+    preset: GrowthThemePreset,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val c = preset.palette.light
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(0.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 2.dp)
+    ) {
+        // 纸色样张:accent 左竖线 + 纸底 + 底部 rule 发丝线,小账本卡缩影
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .drawBehind {
+                    val w = 3.dp.toPx()
+                    drawLine(
+                        color = c.accent,
+                        start = Offset(w / 2, 0f),
+                        end = Offset(w / 2, size.height),
+                        strokeWidth = w
+                    )
+                    drawLine(
+                        color = c.rule,
+                        start = Offset(0f, size.height),
+                        end = Offset(size.width, size.height),
+                        strokeWidth = 1.dp.toPx()
+                    )
+                }
+                .background(c.paper)
+                .padding(start = 10.dp, top = 6.dp)
+        ) {
+            // 两粒墨点样张:ink 强弱层次
+            Box(
+                Modifier
+                    .width(28.dp)
+                    .height(3.dp)
+                    .background(c.ink)
+            )
+            Box(
+                Modifier
+                    .padding(top = 8.dp)
+                    .width(20.dp)
+                    .height(3.dp)
+                    .background(c.inkSoft)
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = preset.label + if (selected) " ✓" else "",
+            style = MaterialTheme.typography.labelSmall,
+            color = if (selected) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 2.dp)
+        )
     }
 }
 
@@ -377,7 +493,7 @@ private fun SettingsIdlePreview() {
     GrowthOSTheme {
         SettingsContent(
             state = SettingsUiState(),
-            onBack = {}, onExport = {}, onImport = {},
+            selectedTheme = GrowthThemePreset.DEFAULT, onThemeSelect = {}, onBack = {}, onExport = {}, onImport = {},
             snackbarHostState = remember { SnackbarHostState() }
         )
     }
@@ -389,7 +505,7 @@ private fun SettingsExportingPreview() {
     GrowthOSTheme {
         SettingsContent(
             state = SettingsUiState(exportState = ExportState.Exporting),
-            onBack = {}, onExport = {}, onImport = {},
+            selectedTheme = GrowthThemePreset.DEFAULT, onThemeSelect = {}, onBack = {}, onExport = {}, onImport = {},
             snackbarHostState = remember { SnackbarHostState() }
         )
     }
@@ -401,7 +517,7 @@ private fun SettingsImportingPreview() {
     GrowthOSTheme {
         SettingsContent(
             state = SettingsUiState(importState = ImportState.Importing),
-            onBack = {}, onExport = {}, onImport = {},
+            selectedTheme = GrowthThemePreset.DEFAULT, onThemeSelect = {}, onBack = {}, onExport = {}, onImport = {},
             snackbarHostState = remember { SnackbarHostState() }
         )
     }

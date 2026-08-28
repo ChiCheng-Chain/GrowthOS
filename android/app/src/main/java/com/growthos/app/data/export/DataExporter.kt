@@ -49,7 +49,7 @@ class DataExporterImpl(
             trainings = trainingRepository.observeAllWithNames().first().map { it.training },
             principles = principleRepository.observeAll().first(),
             knowledges = knowledgeRepository.observeAll().first(),
-            meta = ExportMeta(version = 1, exportedAt = now())
+            meta = ExportMeta(version = 2, exportedAt = now())
         )
         return json.encodeToString(ExportPayload.serializer(), payload)
     }

@@ -78,7 +78,7 @@ class DataExporterTest {
         assertTrue(payload.trainings.isEmpty())
         assertTrue(payload.principles.isEmpty())
         assertTrue(payload.knowledges.isEmpty())
-        assertEquals(1, payload.meta.version)
+        assertEquals(2, payload.meta.version)
         assertEquals(fixedNow, payload.meta.exportedAt)
     }
 
@@ -158,7 +158,7 @@ class DataExporterTest {
         assertEquals(KnowledgeType.EXPERIENCE, k.type)
         assertEquals(domainId, k.domainId)
 
-        assertEquals(1, payload.meta.version)
+        assertEquals(2, payload.meta.version)
         assertEquals(fixedNow, payload.meta.exportedAt)
     }
 

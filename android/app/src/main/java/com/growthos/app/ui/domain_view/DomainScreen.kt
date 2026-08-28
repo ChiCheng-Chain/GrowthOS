@@ -194,10 +194,11 @@ fun DomainContent(
             .fillMaxWidth()
             .verticalScroll(scrollState)
     ) {
+        val currentDomain = domainState.selectedDomain
         PageHeader(
-            eyebrow = "领域",
-            title = domainState.selectedDomain?.name ?: "领域",
-            subtitle = if (domainState.selectedDomain != null) "选中领域 · 最近样本 / 错误分布 / 训练项 / 原则"
+            title = "领域",
+            subtitle = if (currentDomain != null)
+                "当前:${currentDomain.name}"
             else "先建一个领域,开始记录与复盘"
         )
 

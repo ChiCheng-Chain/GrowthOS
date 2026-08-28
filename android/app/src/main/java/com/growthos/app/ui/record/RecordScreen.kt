@@ -78,7 +78,6 @@ private fun RecordContent(
             .verticalScroll(rememberScrollState())
     ) {
         PageHeader(
-            eyebrow = "今日记录",
             title = "记下关键样本",
             subtitle = "一次复盘从记录开始。30 秒 ~ 2 分钟,只写最关键的。"
         )

@@ -124,7 +124,6 @@ fun WeeklyContent(
             )
         }
         PageHeader(
-            eyebrow = "周复盘",
             title = "本周回顾",
             subtitle = null,
             modifier = Modifier.clickable(onClick = onOpenScope)

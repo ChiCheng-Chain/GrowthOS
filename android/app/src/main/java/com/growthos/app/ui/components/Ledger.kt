@@ -89,10 +89,9 @@ fun Eyebrow(
     }
 }
 
-// 页面标题块:眉标 + 衬线大标题 + 副说明。用于每个 Tab 顶部。
+// 页面标题块:衬线大标题 + 副说明。眉标已全局取消(与底部 Tab 标签重复,2026-08-27)。
 @Composable
 fun PageHeader(
-    eyebrow: String,
     title: String,
     subtitle: String? = null,
     modifier: Modifier = Modifier
@@ -102,8 +101,6 @@ fun PageHeader(
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 16.dp)
     ) {
-        Eyebrow(eyebrow)
-        Spacer(Modifier.height(8.dp))
         Text(
             text = title,
             style = MaterialTheme.typography.displaySmall,

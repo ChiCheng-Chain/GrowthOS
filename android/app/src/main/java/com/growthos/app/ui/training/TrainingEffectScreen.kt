@@ -113,9 +113,8 @@ private fun TrainingEffectContent(
             } else {
                 val t = state.training!!
                 PageHeader(
-                    eyebrow = "训练效果",
                     title = state.errorTypeName ?: "训练项",
-                    subtitle = "${state.domainName} · ${t.status.label} · 开始 ${formatDate(t.startedAt)}"
+                    subtitle = "训练效果 · ${state.domainName} · ${t.status.label} · 开始 ${formatDate(t.startedAt)}"
                 )
 
                 // 训练目标 + 验收标准

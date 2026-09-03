@@ -1,6 +1,7 @@
 package com.growthos.app.ui.principle
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -261,6 +262,7 @@ private fun PickChip(name: String, selected: Boolean, onClick: () -> Unit) {
         color = fg,
         modifier = Modifier
             .background(bg)
+            .clickable { onClick() }
             .padding(horizontal = 14.dp, vertical = 8.dp)
     )
 }

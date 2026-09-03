@@ -1,11 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 自适应图标前景(108dp 画布,安全区约中央 66dp)。 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- 透明前景:只展示背景图,不加任何图形。自适应图标要求前景层存在,此处留空。 -->
+
+    <!-- 备份:石灰纸小页(右页,翻起一角) -->
     <path
-        android:pathData="M0,0"
-        android:strokeWidth="0"
-        android:strokeColor="#00000000" />
+        android:pathData="M47,38 L66,34 A3,3 0 0 1 69.5,37 L72,58 A3,3 0 0 1 69,61.5 L50,65.5 A3,3 0 0 1 46.5,62.5 L44,41.5 A3,3 0 0 1 47,38 Z"
+        android:fillColor="#F1EDE2"
+        android:strokeColor="#D9D2C2"
+        android:strokeWidth="1" />
+
+    <!-- 主页:墨色手册封面(左页,略大,压住右页) -->
+    <path
+        android:pathData="M36,32 L58,29 A3,3 0 0 1 61.5,32 L65.5,64 A3,3 0 0 1 62.5,67.5 L40.5,70.5 A3,3 0 0 1 37,67.5 L33,35.5 A3,3 0 0 1 36,32 Z"
+        android:fillColor="#2A2620" />
+
+    <!-- 手册书脊高光:左缘细线 -->
+    <path
+        android:pathData="M37.5,33.5 L39.5,66.5"
+        android:strokeColor="#4A463E"
+        android:strokeWidth="1"
+        android:strokeLineCap="round" />
+
+    <!-- 封面横线:账目行(3 条渐弱的墨线) -->
+    <path
+        android:pathData="M43,42 L56,40.4"
+        android:strokeColor="#8B8578"
+        android:strokeWidth="1.6"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M43.6,48 L54,46.8"
+        android:strokeColor="#6E675A"
+        android:strokeWidth="1.6"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M44.2,54 L50,53.3"
+        android:strokeColor="#55503F"
+        android:strokeWidth="1.6"
+        android:strokeLineCap="round" />
+
+    <!-- 琥珀强调:下次怎么做竖线(App 内 NextActionBlock 的签名视觉) -->
+    <path
+        android:pathData="M40.2,40.5 L43.6,63.5"
+        android:strokeColor="#D9832F"
+        android:strokeWidth="2.6"
+        android:strokeLineCap="round" />
 </vector>

@@ -16,3 +16,7 @@ skills-lock.json
 # OS
 Thumbs.db
 .DS_Store
+
+# AI 协作工作区与打包产物(仅本地保留)
+.ai-work/
+*.apk

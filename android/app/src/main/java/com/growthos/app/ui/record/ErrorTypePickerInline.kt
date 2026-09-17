@@ -35,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.growthos.app.data.local.entity.ErrorType
+import com.growthos.app.domain.model.Polarity
 import com.growthos.app.ui.components.Eyebrow
 import com.growthos.app.ui.theme.GrowthOSTheme
 
@@ -73,8 +74,13 @@ fun ErrorTypePickerInline(
             val isSelected = et.id == selectedId
             val bg = if (isSelected) MaterialTheme.colorScheme.onBackground
             else MaterialTheme.colorScheme.surfaceVariant
-            val fg = if (isSelected) MaterialTheme.colorScheme.background
-            else MaterialTheme.colorScheme.onSurfaceVariant
+            // 正负标色(feature 2026-09-16 / 设计 D6):正向因素未选中时用 primary(accent),
+            // 负向保持 onSurfaceVariant 灰;选中态背景反转规则不变。
+            val fg = when {
+                isSelected -> MaterialTheme.colorScheme.background
+                et.polarity == Polarity.POSITIVE -> MaterialTheme.colorScheme.primary
+                else -> MaterialTheme.colorScheme.onSurfaceVariant
+            }
             Text(
                 text = et.name,
                 style = MaterialTheme.typography.labelLarge,
@@ -142,7 +148,7 @@ private fun NewErrorTypeDialog(
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 24.dp)
         ) {
-            Eyebrow("新建错误类型")
+            Eyebrow("新建关键因素")
             Spacer(Modifier.height(12.dp))
             OutlinedTextField(
                 value = name,
@@ -188,7 +194,7 @@ private fun NewErrorTypeDialog(
 
 // ---------- Previews ----------
 
-@Preview(name = "错误类型选择", showBackground = true, heightDp = 200)
+@Preview(name = "关键因素选择", showBackground = true, heightDp = 200)
 @Composable
 private fun ErrorTypePickerInlinePreview() {
     GrowthOSTheme {

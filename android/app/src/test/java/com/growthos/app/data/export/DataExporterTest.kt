@@ -72,13 +72,13 @@ class DataExporterTest {
         val payload = json.decodeFromString(ExportPayload.serializer(), raw)
 
         assertTrue("空库领域应空", payload.domains.isEmpty())
-        // 错误类型含 R-004 种子 8 个(createInMemory 也挂 SeedCallback)
-        assertEquals(8, payload.errorTypes.size)
+        // 错误类型含 R-004 种子 12 个(8 负向+4 正向,createInMemory 也挂 SeedCallback)
+        assertEquals(12, payload.errorTypes.size)
         assertTrue(payload.samples.isEmpty())
         assertTrue(payload.trainings.isEmpty())
         assertTrue(payload.principles.isEmpty())
         assertTrue(payload.knowledges.isEmpty())
-        assertEquals(2, payload.meta.version)
+        assertEquals(3, payload.meta.version)
         assertEquals(fixedNow, payload.meta.exportedAt)
     }
 
@@ -158,8 +158,20 @@ class DataExporterTest {
         assertEquals(KnowledgeType.EXPERIENCE, k.type)
         assertEquals(domainId, k.domainId)
 
-        assertEquals(2, payload.meta.version)
+        assertEquals(3, payload.meta.version)
         assertEquals(fixedNow, payload.meta.exportedAt)
+    }
+
+    @Test
+    fun `export errorTypes carry polarity field`() = runTest {
+        awaitSeed()
+        val raw = exporter.export()
+        // 设计 D9:v3 导出的 errorTypes 对象含 polarity 字段
+        assertTrue("JSON 应含 polarity 字段", raw.contains("\"polarity\""))
+        val payload = json.decodeFromString(ExportPayload.serializer(), raw)
+        // 种子词典:8 负向 + 4 正向(设计 D3),导出按实际极性往返
+        assertEquals(8, payload.errorTypes.count { it.polarity == com.growthos.app.domain.model.Polarity.NEGATIVE })
+        assertEquals(4, payload.errorTypes.count { it.polarity == com.growthos.app.domain.model.Polarity.POSITIVE })
     }
 
     @Test
@@ -206,6 +218,7 @@ class DataExporterTest {
 
     /** 等待 R-004 种子写入完成(onCreate 在写线程异步执行)。 */
     private suspend fun awaitSeed() {
-        db.errorTypeDao().observeAll().first { it.size == 8 }
+        // 种子 12 个(8 负向+4 正向,feature 2026-09-16 设计 D3)
+        db.errorTypeDao().observeAll().first { it.size == 12 }
     }
 }

@@ -136,7 +136,8 @@ class ErrorTypeRepositoryTest {
     // ---------- 辅助 ----------
 
     private suspend fun awaitSeed() {
-        db.errorTypeDao().observeAll().first { it.size == 8 }
+        // 种子 12 个(8 负向+4 正向,feature 2026-09-16 设计 D3)
+        db.errorTypeDao().observeAll().first { it.size == 12 }
     }
 
     private suspend fun insertErrorType(name: String): Long {

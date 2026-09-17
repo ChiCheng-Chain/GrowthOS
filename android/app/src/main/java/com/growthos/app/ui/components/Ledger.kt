@@ -202,12 +202,13 @@ fun LedgerRow(
     }
 }
 
-// "下次怎么做"区块:琥珀色左边框,强调这是面向未来的行动项。
+// 强调区块:琥珀色左边框,面向未来的行动/结论内容。
+// label 为 null 时不渲染眉标(feature 2026-09-16 / 设计 D10:样本复盘不再显示「下次怎么做」)。
 @Composable
 fun NextActionBlock(
     text: String,
     modifier: Modifier = Modifier,
-    label: String = "下次怎么做"
+    label: String? = null
 ) {
     val ochre = MaterialTheme.colorScheme.primary
     Column(
@@ -224,12 +225,14 @@ fun NextActionBlock(
             }
             .padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp)
     ) {
-        Text(
-            text = label.uppercase(),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.primary
-        )
-        Spacer(Modifier.height(4.dp))
+        if (label != null) {
+            Text(
+                text = label.uppercase(),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.height(4.dp))
+        }
         Text(
             text = text,
             style = MaterialTheme.typography.bodyLarge,

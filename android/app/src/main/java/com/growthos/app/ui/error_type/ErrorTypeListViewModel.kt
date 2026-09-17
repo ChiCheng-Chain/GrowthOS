@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.growthos.app.data.local.entity.ErrorType
 import com.growthos.app.data.repository.ErrorTypeRepository
+import com.growthos.app.domain.model.Polarity
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -16,13 +17,14 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
- * 错误类型管理页状态(CRUD 补全)。
+ * 关键因素管理页状态(CRUD 补全 / feature 2026-09-16 BR-7)。
  *
- * - [errorTypes]:全部错误类型(含种子),来自 ErrorTypeRepository.observeAll()。
+ * - [errorTypes]:全部因素(含种子),来自 ErrorTypeRepository.observeAll()。
  * - [dialog]:新建 / 改名对话框开关 + 携带编辑目标(仿 DomainViewModel)。
  *
  * 改名撞名由 Repository 封装合并逻辑(迁移引用 + 删旧 id),UI 无感。
  * 删除走引用检查(referenceCount → 拦截 / 确认),与 Sample 编辑页长按删除同范式。
+ * 分组展示(negative 在前/positive 在后)由 UI 按 polarity 派生,状态层不拆分。
  */
 data class ErrorTypeListUiState(
     val errorTypes: List<ErrorType> = emptyList(),
@@ -74,8 +76,8 @@ class ErrorTypeListViewModel(
     fun openEdit(errorType: ErrorType) { dialogState.value = ErrorTypeDialog.Edit(errorType) }
     fun dismissDialog() { dialogState.value = null }
 
-    fun create(name: String) = viewModelScope.launch {
-        repository.getOrCreate(name.trim())
+    fun create(name: String, polarity: Polarity = Polarity.NEGATIVE) = viewModelScope.launch {
+        repository.getOrCreate(name.trim(), polarity)
         dialogState.value = null
     }
 

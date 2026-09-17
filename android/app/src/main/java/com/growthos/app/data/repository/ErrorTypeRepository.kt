@@ -2,11 +2,12 @@ package com.growthos.app.data.repository
 
 import com.growthos.app.data.local.dao.ErrorTypeDao
 import com.growthos.app.data.local.entity.ErrorType
+import com.growthos.app.domain.model.Polarity
 import com.growthos.app.util.TimeUtil
 import kotlinx.coroutines.flow.Flow
 
 /**
- * 错误类型仓库契约(R-004 / R-014 / CRUD 补全)。
+ * 错误类型(关键因素)仓库契约(R-004 / R-014 / CRUD 补全)。
  *
  * 抽成 interface 便于测试注入桩实现([com.growthos.app.ui.error_type.ErrorTypeListViewModelTest]
  * 验状态机不依赖 Room 异步 Flow)。默认实现 [ErrorTypeRepositoryImpl] 封装撞名合并逻辑。
@@ -16,8 +17,8 @@ interface ErrorTypeRepository {
 
     suspend fun getById(id: Long): ErrorType?
 
-    /** 新增,重名复用(GET 语义)。 */
-    suspend fun getOrCreate(name: String): Long
+    /** 新增,重名复用(GET 语义)。polarity 供新词条定极(feature 2026-09-16 / 设计 D7)。 */
+    suspend fun getOrCreate(name: String, polarity: Polarity = Polarity.NEGATIVE): Long
 
     /** 改名,撞名走合并(迁移引用 + 删旧 id)。 */
     suspend fun rename(id: Long, name: String)
@@ -38,9 +39,9 @@ class ErrorTypeRepositoryImpl(private val dao: ErrorTypeDao) : ErrorTypeReposito
 
     override suspend fun getById(id: Long): ErrorType? = dao.getById(id)
 
-    override suspend fun getOrCreate(name: String): Long {
+    override suspend fun getOrCreate(name: String, polarity: Polarity): Long {
         dao.getByName(name)?.let { return it.id }
-        return dao.insert(ErrorType(name = name, createdAt = TimeUtil.nowMillis()))
+        return dao.insert(ErrorType(name = name, createdAt = TimeUtil.nowMillis(), polarity = polarity))
     }
 
     override suspend fun rename(id: Long, name: String) {

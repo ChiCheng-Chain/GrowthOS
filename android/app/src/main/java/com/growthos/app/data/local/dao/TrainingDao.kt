@@ -66,14 +66,21 @@ interface TrainingDao {
     /**
      * R-011 训练前后对比:训练开始前/后该错误类型出现次数。
      * 前窗口:[0, startedAt),后窗口:[startedAt, now]。单次训练。
+     * 口径(feature 2026-09-16 / 设计 D4):训练针对负向因素,子查询 JOIN 排除
+     * 非本因素样本的语义由 errorTypeId 保证;此处再限 polarity,防因素极性被
+     * 编辑后前后窗口混入成功样本计数。
      */
     @Query(
         """
         SELECT
-          (SELECT COUNT(*) FROM samples
-             WHERE errorTypeId = :errorTypeId AND recordedAt < :startedAt) AS beforeCount,
-          (SELECT COUNT(*) FROM samples
-             WHERE errorTypeId = :errorTypeId AND recordedAt >= :startedAt) AS afterCount
+          (SELECT COUNT(*) FROM samples s
+             INNER JOIN error_types et ON s.errorTypeId = et.id
+             WHERE s.errorTypeId = :errorTypeId AND s.recordedAt < :startedAt
+               AND et.polarity = 'NEGATIVE') AS beforeCount,
+          (SELECT COUNT(*) FROM samples s
+             INNER JOIN error_types et ON s.errorTypeId = et.id
+             WHERE s.errorTypeId = :errorTypeId AND s.recordedAt >= :startedAt
+               AND et.polarity = 'NEGATIVE') AS afterCount
         """
     )
     suspend fun effectStats(errorTypeId: Long, startedAt: Long): TrainingEffectStats

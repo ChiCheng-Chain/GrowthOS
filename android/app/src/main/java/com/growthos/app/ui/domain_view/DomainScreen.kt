@@ -276,7 +276,7 @@ fun DomainContent(
 
             // F2 错误类型分布(点条触发筛选 → 设计 D5,现经筛选弹层)
             SectionCard {
-                SectionCardLabel("错误类型分布")
+                SectionCardLabel("关键因素分布")
                 if (statsState.errorDistribution.isEmpty()) {
                     EmptyHint("还没有样本")
                 } else {

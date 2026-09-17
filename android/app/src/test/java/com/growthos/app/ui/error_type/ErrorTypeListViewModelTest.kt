@@ -2,6 +2,7 @@ package com.growthos.app.ui.error_type
 
 import com.growthos.app.data.local.entity.ErrorType
 import com.growthos.app.data.repository.ErrorTypeRepository
+import com.growthos.app.domain.model.Polarity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -156,11 +157,11 @@ private class FakeErrorTypeRepository : ErrorTypeRepository {
 
     override suspend fun getById(id: Long): ErrorType? = all.value.firstOrNull { it.id == id }
 
-    override suspend fun getOrCreate(name: String): Long {
+    override suspend fun getOrCreate(name: String, polarity: Polarity): Long {
         all.value.firstOrNull { it.name == name }?.let { return it.id }
         counter += 1
         val id = counter
-        all.update { it + ErrorType(id = id, name = name, createdAt = id) }
+        all.update { it + ErrorType(id = id, name = name, createdAt = id, polarity = polarity) }
         return id
     }
 

@@ -277,7 +277,7 @@ private fun EmptyHint() {
         Spacer(Modifier.height(10.dp))
         NextActionBlock(
             label = "开始",
-            text = "从周复盘的高频错误开始,建第一个训练项。在周复盘页点「建议关注」或高频错误前三,即可带错误类型预填进入新建。"
+            text = "从周复盘的高频错误开始,建第一个训练项。在周复盘页点「建议关注」或高频错误前三,即可带关键因素预填进入新建。"
         )
     }
 }

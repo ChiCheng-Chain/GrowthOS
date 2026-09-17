@@ -118,6 +118,33 @@ class SampleViewModelTest {
         assertTrue(vm.uiState.value.form.isValid)
     }
 
+    /** 归因六值(AC-03):每个枚举值(含正向 CONTROLLABLE_STRENGTH/OPPONENT_WEAK)均可选中并保存。 */
+    @Test
+    fun `form accepts all six attribution values`() = runTest(testDispatcher) {
+        for (attr in Attribution.entries) {
+            val sampleDao = FakeSampleDao()
+            val errorTypeDao = FakeErrorTypeDao()
+            val domainDao = FakeDomainDao()
+            seedDomains(domainDao, "编程")
+            seedErrorTypes(errorTypeDao, "边界条件遗漏")
+            val vm = newVm(sampleDao, errorTypeDao, domainDao, FakeSelectedDomainStore())
+            advanceUntilIdle()
+
+            vm.updateDomain(1L)
+            vm.updateResult("一局关键样本")
+            vm.updateErrorType(1L)
+            vm.updateAttribution(attr)
+            vm.updateReview("复盘一句")
+            advanceUntilIdle()
+            assertTrue("归因 ${attr.name} 应使表单有效", vm.uiState.value.form.isValid)
+
+            vm.save()
+            advanceUntilIdle()
+            assertEquals("归因 ${attr.name} 应成功入库", 1, sampleDao.all.value.size)
+            assertEquals(attr, sampleDao.all.value.single().attribution)
+        }
+    }
+
     @Test
     fun `new sample defaults domain to selected store value`() = runTest(testDispatcher) {
         val sampleDao = FakeSampleDao()

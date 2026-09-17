@@ -79,6 +79,15 @@ android {
             includeAndroidResources = true
         }
     }
+
+    // Room MigrationTestHelper 从 merged assets 读 schema JSON(schemas/ 由 KSP room.schemaLocation 导出)。
+    // 单测(Robolectric)的 android_merged_assets 指向 debug 变体 merge,故挂到 debug sourceSet。
+    // 只影响 debug 构建,release APK 不含 schema。
+    sourceSets {
+        debug {
+            assets.srcDir "$projectDir/schemas"
+        }
+    }
 }
 
 dependencies {

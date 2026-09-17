@@ -329,10 +329,78 @@ class DataImporterTest {
     // ---------- D0:导出版本修正 ----------
 
     @Test
-    fun `exporter emits version 2`() = runTest {
+    fun `exporter emits version 3`() = runTest {
         awaitSeed()
         val payload = decodePayload(exporter.export())
-        assertEquals(2, payload.meta.version)
+        assertEquals(3, payload.meta.version)
+    }
+
+    // ---------- v3 极性(feature 2026-09-16 / 设计 D9) ----------
+
+    @Test
+    fun `import v2 backup fills polarity as negative`() = runTest {
+        awaitSeed()
+        // v2 夹具的 errorTypes 无 polarity 字段 → 实体默认值回填 NEGATIVE
+        val json = buildJson(
+            domains = """[{"id": 1, "name": "领域", "createdAt": 10, "hidden": false}]""",
+            errorTypes = """[{"id": 2, "name": "旧版错误", "createdAt": 11}]"""
+        )
+        val preview = importer.parse(json)
+        importer.apply(preview)
+
+        val imported = db.errorTypeDao().getByName("旧版错误")!!
+        assertEquals(com.growthos.app.domain.model.Polarity.NEGATIVE, imported.polarity)
+    }
+
+    @Test
+    fun `import v3 roundtrips polarity`() = runTest {
+        awaitSeed()
+        // v3 夹具带 polarity 字段,正负各一条 → 往返校验保真
+        val json = buildJson(
+            metaVersion = 3,
+            domains = """[{"id": 1, "name": "领域", "createdAt": 10, "hidden": false}]""",
+            errorTypes = """[
+                {"id": 2, "name": "负向因素", "createdAt": 11, "polarity": "NEGATIVE"},
+                {"id": 3, "name": "执行到位", "createdAt": 12, "polarity": "POSITIVE"}
+            ]"""
+        )
+        val preview = importer.parse(json)
+        importer.apply(preview)
+
+        assertEquals(
+            com.growthos.app.domain.model.Polarity.NEGATIVE,
+            db.errorTypeDao().getByName("负向因素")!!.polarity
+        )
+        assertEquals(
+            com.growthos.app.domain.model.Polarity.POSITIVE,
+            db.errorTypeDao().getByName("执行到位")!!.polarity
+        )
+    }
+
+    @Test
+    fun `export import roundtrip preserves polarity`() = runTest {
+        awaitSeed()
+        // 真数据层往返:造一正一负(名字不与 12 条种子冲突)→ 导出(v3) → 导入 → 极性保真
+        db.domainDao().insert(Domain(id = 1, name = "领域", createdAt = 10))
+        val negId = db.errorTypeDao().insert(ErrorType(name = "自定义负向", createdAt = 11))
+        val posId = db.errorTypeDao().insert(
+            ErrorType(name = "自定义正向", createdAt = 12, polarity = com.growthos.app.domain.model.Polarity.POSITIVE)
+        )
+        org.junit.Assert.assertTrue("负向词条应插入成功", negId > 0)
+        org.junit.Assert.assertTrue("正向词条应插入成功", posId > 0)
+
+        val raw = exporter.export()
+        val preview = importer.parse(raw)
+        importer.apply(preview)
+
+        assertEquals(
+            com.growthos.app.domain.model.Polarity.NEGATIVE,
+            db.errorTypeDao().getByName("自定义负向")!!.polarity
+        )
+        assertEquals(
+            com.growthos.app.domain.model.Polarity.POSITIVE,
+            db.errorTypeDao().getByName("自定义正向")!!.polarity
+        )
     }
 
     // ---------- helpers ----------
@@ -392,7 +460,8 @@ class DataImporterTest {
     }
 
     private suspend fun awaitSeed() {
-        db.errorTypeDao().observeAll().first { it.size == 8 }
+        // 种子 12 个(8 负向+4 正向,feature 2026-09-16 设计 D3)
+        db.errorTypeDao().observeAll().first { it.size == 12 }
     }
 
     private suspend fun snapshotCounts() = TableCounts(

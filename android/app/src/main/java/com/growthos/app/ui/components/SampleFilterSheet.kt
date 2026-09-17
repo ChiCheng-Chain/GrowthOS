@@ -62,7 +62,7 @@ fun SampleFilterSheet(
                 onAction = onClearAll
             )
 
-            SheetSectionLabel("按错误类型")
+            SheetSectionLabel("按关键因素")
             FlowRow(
                 modifier = Modifier
                     .fillMaxWidth()

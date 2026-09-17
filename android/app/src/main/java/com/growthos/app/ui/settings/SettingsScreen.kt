@@ -237,7 +237,7 @@ private fun SettingsContent(
 
             DataActionRow(
                 title = "导出数据",
-                subtitle = "导出全部领域 / 样本 / 错误类型 / 训练项 / 原则为 JSON",
+                subtitle = "导出全部领域 / 样本 / 关键因素 / 训练项 / 原则为 JSON",
                 icon = Icons.Outlined.FileDownload,
                 busy = exporting,
                 busyLabel = "导出中",

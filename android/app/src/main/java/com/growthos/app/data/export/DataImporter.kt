@@ -58,12 +58,13 @@ data class ImportCounts(val tableCounts: TableCounts)
  *
  * 校验四层(设计 D4):
  * ① 格式层:JSON 解析失败/缺表/坏枚举 → SerializationException;
- * ② 版本层:version ∉ {1,2} 或缺失 → 明确拒绝;
+ * ② 版本层:version ∉ {1,2,3} 或缺失 → 明确拒绝;
  * ③ 语义预检:每表 id 唯一、sample/training 外键在文件内存在、errorTypes.name 无重复;
  * ④ DB 兜底:事务内约束异常整体回滚。
  *
- * v1/v2 兼容(设计 D2):统一 ignoreUnknownKeys 解码——v1 的 description(及
+ * 版本兼容(设计 D2/D9):统一 ignoreUnknownKeys 解码——v1 的 description(及
  * 当前导出器硬编码 1 产出的伪 v1)与一切未知字段天然被忽略。
+ * v1/v2 的 errorTypes 无 polarity 字段,由实体默认值回填 NEGATIVE(旧备份词典全是错误类型,语义成立)。
  */
 class DataImporterImpl(
     private val database: GrowthOSDatabase
@@ -82,7 +83,7 @@ class DataImporterImpl(
             throw ImportException("文件格式无法识别")
         }
         val version = payload.meta.version
-        if (version != 1 && version != 2) {
+        if (version != 1 && version != 2 && version != 3) {
             throw ImportException("不支持的备份版本(v$version)")
         }
         validate(payload)

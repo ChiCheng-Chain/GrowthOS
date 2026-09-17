@@ -177,7 +177,7 @@ private fun PrincipleEditContent(
             LedgerRule(modifier = Modifier.padding(top = 12.dp))
 
             // 3. 错误类型(可选,chips)
-            FieldLabel("错误类型", required = false)
+            FieldLabel("关键因素", required = false)
             FlowRow(
                 modifier = Modifier
                     .fillMaxWidth()

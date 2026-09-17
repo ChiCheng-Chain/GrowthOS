@@ -159,7 +159,7 @@ fun WeeklyContent(
         ) {
             SubEntry("训练项", onNavigateToTrainingList)
             SubEntry("原则库", onNavigateToPrincipleList)
-            SubEntry("错误类型", onNavigateToErrorTypes)
+            SubEntry("关键因素", onNavigateToErrorTypes)
             SubEntry("知识库", onNavigateToKnowledge)
             SubEntry("设置", onNavigateToSettings)
         }

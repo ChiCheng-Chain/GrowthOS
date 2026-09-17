@@ -218,7 +218,7 @@ private fun SampleEditContent(
             LedgerRule(modifier = Modifier.padding(top = 12.dp))
 
             // 3. 错误类型(内联 + 新建)
-            FieldLabel("错误类型")
+            FieldLabel("关键因素")
             ErrorTypePickerInline(
                 errorTypes = state.errorTypes,
                 selectedId = form.errorTypeId,
@@ -247,12 +247,12 @@ private fun SampleEditContent(
             )
             LedgerRule(modifier = Modifier.padding(top = 12.dp))
 
-            // 7. 一句话复盘
+            // 7. 一句话复盘(placeholder 去除,feature 2026-09-16 / 设计 D10 / BR-6)
             FieldLabel("一句话复盘")
             FormTextField(
                 value = form.review,
                 onValueChange = onUpdateReview,
-                placeholder = "下次怎么做",
+                placeholder = "",
                 singleLine = false
             )
             LedgerRule(modifier = Modifier.padding(top = 12.dp))
@@ -312,7 +312,7 @@ private fun SampleEditContent(
     pendingDelete?.let { et ->
         AlertDialog(
             onDismissRequest = onDismissDeleteErrorType,
-            title = { Text("删除错误类型") },
+            title = { Text("删除关键因素") },
             text = { Text("删除「${et.name}」?未引用时可直接删除。") },
             confirmButton = {
                 TextButton(onClick = {
@@ -353,7 +353,7 @@ private fun FormTextField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        placeholder = { Text(placeholder) },
+        placeholder = { if (placeholder.isNotEmpty()) Text(placeholder) },
         singleLine = singleLine,
         modifier = Modifier
             .fillMaxWidth()

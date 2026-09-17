@@ -1,5 +1,7 @@
 package com.growthos.app.ui.error_type
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -28,13 +30,14 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.growthos.app.data.local.entity.ErrorType
+import com.growthos.app.domain.model.Polarity
 import com.growthos.app.ui.components.Eyebrow
 
 /**
  * 新建 / 改名共用底部对话框(CRUD 补全,仿 DomainEditDialog)。
  *
- * - 新建态([ErrorTypeDialog.Create]):空名称。
- * - 编辑态([ErrorTypeDialog.Edit]):预填名称。
+ * - 新建态([ErrorTypeDialog.Create]):空名称 + 极性选择(默认负向,feature 2026-09-16 / 设计 D7)。
+ * - 编辑态([ErrorTypeDialog.Edit]):预填名称,极性锁定不可改(防「同名词忽正忽负」污染统计口径)。
  * - 校验:名称 trim 后非空且 ≤ 20 字符。
  * - 重名:软提示行,不阻断(撞名由 Repository rename 走合并)。
  */
@@ -43,7 +46,7 @@ import com.growthos.app.ui.components.Eyebrow
 fun ErrorTypeEditDialog(
     dialog: ErrorTypeDialog,
     hasDuplicate: (String) -> Boolean,
-    onSave: (name: String) -> Unit,
+    onSave: (name: String, polarity: Polarity) -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -51,6 +54,7 @@ fun ErrorTypeEditDialog(
     val editing: ErrorType? = (dialog as? ErrorTypeDialog.Edit)?.errorType
 
     var name by remember(dialog) { mutableStateOf(editing?.name ?: "") }
+    var polarity by remember(dialog) { mutableStateOf(editing?.polarity ?: Polarity.NEGATIVE) }
 
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(dialog) { focusRequester.requestFocus() }
@@ -71,7 +75,7 @@ fun ErrorTypeEditDialog(
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 24.dp)
         ) {
-            Eyebrow(if (isEdit) "编辑错误类型" else "新建错误类型")
+            Eyebrow(if (isEdit) "编辑关键因素" else "新建关键因素")
             Spacer(Modifier.height(12.dp))
 
             OutlinedTextField(
@@ -94,6 +98,33 @@ fun ErrorTypeEditDialog(
                     HintText("已有同名,改名后将合并到已有项")
             }
 
+            // 极性选择:仅新建态可改;编辑态展示锁定值(设计 D7)
+            Spacer(Modifier.height(16.dp))
+            if (isEdit) {
+                HintText(if (polarity == Polarity.POSITIVE) "极性:正向(不可修改)" else "极性:负向(不可修改)")
+            } else {
+                HintText("极性")
+                Spacer(Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Polarity.entries.forEach { p ->
+                        val selected = p == polarity
+                        val bg = if (selected) MaterialTheme.colorScheme.onBackground
+                        else MaterialTheme.colorScheme.surfaceVariant
+                        val fg = if (selected) MaterialTheme.colorScheme.surface
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                        Text(
+                            text = if (p == Polarity.NEGATIVE) "负向(错误)" else "正向(做对的事)",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = fg,
+                            modifier = Modifier
+                                .background(bg)
+                                .clickable { polarity = p }
+                                .padding(horizontal = 14.dp, vertical = 8.dp)
+                        )
+                    }
+                }
+            }
+
             Spacer(Modifier.height(20.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -103,7 +134,7 @@ fun ErrorTypeEditDialog(
                 TextButton(onClick = onDismiss) { Text("取消") }
                 Spacer(Modifier.width(8.dp))
                 TextButton(
-                    onClick = { if (valid) onSave(trimmed) },
+                    onClick = { if (valid) onSave(trimmed, polarity) },
                     enabled = valid
                 ) {
                     Text(

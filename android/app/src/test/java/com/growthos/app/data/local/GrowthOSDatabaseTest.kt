@@ -1,6 +1,9 @@
 package com.growthos.app.data.local
 
+import android.database.sqlite.SQLiteException
+import androidx.room.testing.MigrationTestHelper
 import androidx.test.core.app.ApplicationProvider
+import androidx.test.platform.app.InstrumentationRegistry
 import com.growthos.app.data.local.entity.Domain
 import com.growthos.app.data.local.entity.ErrorType
 import com.growthos.app.data.local.entity.Principle
@@ -9,6 +12,7 @@ import com.growthos.app.data.local.entity.Training
 import com.growthos.app.data.local.relation.TrainingWithNames
 import com.growthos.app.data.local.relation.PrincipleWithNames
 import com.growthos.app.domain.model.Attribution
+import com.growthos.app.domain.model.Polarity
 import com.growthos.app.domain.model.TrainingStatus
 import com.growthos.app.util.TimeUtil
 import kotlinx.coroutines.flow.first
@@ -18,6 +22,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -27,13 +32,24 @@ import org.robolectric.annotation.Config
  * Room 数据层单测(技术方案 §10 / 二期计划阶段 0 验收)。
  * Robolectric 提供 Context,in-memory DB 跑,不连真机。
  *
- * 覆盖:TypeConverter 往返、种子数据、§6 四组聚合查询。
+ * 覆盖:TypeConverter 往返、种子数据、§6 四组聚合查询、polarity 统计口径
+ * (feature 2026-09-16 / 设计 D4)、v3→v4 无损迁移(设计 D2)。
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33])
 class GrowthOSDatabaseTest {
 
+    private companion object {
+        const val TEST_DB = "migration-test.db"
+    }
+
     private lateinit var db: GrowthOSDatabase
+
+    @get:Rule
+    val migrationHelper = MigrationTestHelper(
+        InstrumentationRegistry.getInstrumentation(),
+        GrowthOSDatabase::class.java
+    )
 
     @Before
     fun setup() {
@@ -46,13 +62,20 @@ class GrowthOSDatabaseTest {
     }
 
     @Test
-    fun seedErrorTypes_insertsEightOnFirstCreate() = runTest {
-        // R-004 种子:首次建库插入 8 个错误类型。
+    fun seedFactors_insertsTwelveWithPolarityOnFirstCreate() = runTest {
+        // R-004 种子(设计 D3):首次建库插入 8 负向 + 4 正向 = 12 条。
         // onCreate 在独立协程跑,首次访问 DAO 触发;在此触发并等待写入完成。
-        db.errorTypeDao().observeAll().first { it.size == 8 }
-        val names = db.errorTypeDao().observeAll().first().map { it.name }
-        assertEquals(ErrorTypeSeed.names.toSet(), names.toSet())
-        assertEquals(8, names.size)
+        db.errorTypeDao().observeAll().first { it.size == 12 }
+        val seeded = db.errorTypeDao().observeAll().first()
+        assertEquals(12, seeded.size)
+        assertEquals(
+            ErrorTypeSeed.negativeNames.toSet(),
+            seeded.filter { it.polarity == Polarity.NEGATIVE }.map { it.name }.toSet()
+        )
+        assertEquals(
+            ErrorTypeSeed.positiveNames.toSet(),
+            seeded.filter { it.polarity == Polarity.POSITIVE }.map { it.name }.toSet()
+        )
     }
 
     @Test
@@ -445,6 +468,150 @@ class GrowthOSDatabaseTest {
         assertNull(rows[0].errorTypeName)
     }
 
+    @Test
+    fun polarityConverter_roundTripsAllValues() {
+        val converters = Converters()
+        for (p in Polarity.entries) {
+            assertEquals(p, converters.toPolarity(converters.fromPolarity(p)))
+        }
+    }
+
+    /**
+     * 统计口径(设计 D4 / BR-5):成败混合数据下,
+     * F1 计数与 F4 情绪峰值含成功样本;F2/F3/分布/effectStats 不含。
+     */
+    @Test
+    fun statistics_withMixedPolarityData_followBRScope() = runTest {
+        val domainId = db.domainDao().insert(Domain(name = "酒馆战旗", createdAt = 0))
+        val eNeg = insertErrorType("贪收益导致下限崩盘")   // 负向种子
+        // 与正向种子「执行到位」重名 → IGNORE 策略返回 -1,走 getByName 兜底(同 insertErrorType 辅助)
+        val ePos = insertPositiveFactor("执行到位")
+
+        // 失败样本:负向因素 3 条(可控 2 + 不可控 1),情绪 5 一条
+        repeat(2) { i ->
+            db.sampleDao().insert(
+                makeSample(domainId, eNeg, Attribution.CONTROLLABLE, intensity = 5, time = 100L + i)
+            )
+        }
+        db.sampleDao().insert(
+            makeSample(domainId, eNeg, Attribution.UNCONTROLLABLE, intensity = 3, time = 110L)
+        )
+        // 成功样本:正向因素 2 条(可控优势,情绪 4)
+        repeat(2) { i ->
+            db.sampleDao().insert(
+                makeSample(domainId, ePos, Attribution.CONTROLLABLE_STRENGTH, intensity = 4, time = 200L + i)
+            )
+        }
+
+        // F1 样本数:含成功 → 5
+        assertEquals(5, db.sampleDao().observeCount(0, 0L, Long.MAX_VALUE).first())
+
+        // F4 情绪峰值:含成功 → 情绪 5 的失败样本;若排除成功仍应是它,再断言一次总数兜底
+        val emo = db.sampleDao().observeHighestEmotion(0, 0L, Long.MAX_VALUE).first()!!
+        assertEquals(5, emo.sample.emotionIntensity)
+
+        // F2 高频错误:只数失败 → 只有 eNeg 榜上有名
+        val top = db.sampleDao().observeTopErrorTypes(0, 0L, Long.MAX_VALUE, limit = 10).first()
+        assertEquals(listOf(eNeg), top.map { it.errorTypeId })
+        assertEquals(3, top[0].count)
+
+        // F3 可控占比:分子分母均只数失败 → total 3, controllable 2
+        val ratio = db.sampleDao().observeControllableRatio(0, 0L, Long.MAX_VALUE).first()!!
+        assertEquals(3, ratio.total)
+        assertEquals(2, ratio.controllable)
+
+        // F5 建议关注:只数失败 → eNeg 可控 2 次
+        val f5 = db.sampleDao().observeTopControllableErrorType(0, 0L, Long.MAX_VALUE).first()!!
+        assertEquals(eNeg, f5.errorTypeId)
+        assertEquals(2, f5.count)
+
+        // 训练效果:本因素(eNeg)前后窗口不受正向样本干扰
+        val statsNeg = db.trainingDao().effectStats(eNeg, 105L)
+        assertEquals(2, statsNeg.beforeCount)
+        assertEquals(1, statsNeg.afterCount)
+        // 正向因素被口径排除:训练项永远针对负向因素(产品语义),
+        // 正向因素的 effectStats 恒为 0(设计 D4 的边界行为)
+        val statsPos = db.trainingDao().effectStats(ePos, 0L)
+        assertEquals(0, statsPos.beforeCount)
+        assertEquals(0, statsPos.afterCount)
+    }
+
+    /** 归因六值(设计 D5):新正向值可入库并还原。 */
+    @Test
+    fun sampleInsert_storesAndRestoresNewAttributionValues() = runTest {
+        val domainId = db.domainDao().insert(Domain(name = "羽毛球", createdAt = 0))
+        val errorTypeId = insertErrorType("压力下急躁")
+
+        val id1 = db.sampleDao().insert(
+            makeSample(domainId, errorTypeId, Attribution.CONTROLLABLE_STRENGTH, time = 100L)
+        )
+        val id2 = db.sampleDao().insert(
+            makeSample(domainId, errorTypeId, Attribution.OPPONENT_WEAK, time = 200L)
+        )
+        assertEquals(Attribution.CONTROLLABLE_STRENGTH, db.sampleDao().getById(id1)!!.attribution)
+        assertEquals(Attribution.OPPONENT_WEAK, db.sampleDao().getById(id2)!!.attribution)
+    }
+
+    /**
+     * v3→v4 无损迁移(设计 D2 / BR-8):从 schema 3 起点迁移,
+     * polarity 列就位、存量行全 NEGATIVE、正向种子补种、samples 数据保留。
+     */
+    @Test
+    fun migration3To4_preservesDataAndSeedsPositives() {
+        val dbv3 = migrationHelper.createDatabase(TEST_DB, 3)
+        // v3 结构:error_types 无 polarity 列。造 2 条存量词条 + 1 条样本。
+        dbv3.execSQL("INSERT INTO domains (id, name, createdAt, hidden) VALUES (1, '编程', 0, 0)")
+        dbv3.execSQL(
+            "INSERT INTO error_types (id, name, createdAt) VALUES (1, '存量错误一', 100)"
+        )
+        dbv3.execSQL(
+            "INSERT INTO error_types (id, name, createdAt) VALUES (2, '运气不错', 200)"
+        )
+        dbv3.execSQL(
+            """INSERT INTO samples (id, domainId, recordedAt, result, errorTypeId, attribution,
+               emotionIntensity, review) VALUES (1, 1, 500, '旧样本', 1, 'CONTROLLABLE', 3, '旧复盘')"""
+        )
+        dbv3.close()
+
+        val dbv4 = migrationHelper.runMigrationsAndValidate(TEST_DB, 4, true, GrowthOSDatabase.MIGRATION_3_4)
+
+        // 存量词条保留且全为 NEGATIVE
+        dbv4.query("SELECT name, polarity FROM error_types WHERE id IN (1, 2)").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals(2, cursor.count)
+            while (cursor.moveToNext() || !cursor.isAfterLast) {
+                assertEquals("NEGATIVE", cursor.getString(cursor.getColumnIndexOrThrow("polarity")))
+                if (cursor.isLast) break
+            }
+        }
+
+        // 正向种子补种(名字不与存量撞的那部分)
+        dbv4.query(
+            "SELECT COUNT(*) FROM error_types WHERE polarity = 'POSITIVE' AND name IN ('执行到位','状态良好','判断准确')"
+        ).use { cursor ->
+            cursor.moveToFirst()
+            assertEquals(3, cursor.getInt(0))
+        }
+
+        // 样本数据无损
+        dbv4.query("SELECT COUNT(*) FROM samples").use { cursor ->
+            cursor.moveToFirst()
+            assertEquals(1, cursor.getInt(0))
+        }
+        dbv4.close()
+    }
+
+    /**
+     * 迁移安全(设计 D2):移除 destructive fallback 后,
+     * version 4 库不允许无 Migration 的路径——由 Room 校验 schema 一致性兜底。
+     * 此处断言 Migration 对象的起点终点。
+     */
+    @Test
+    fun migration3To4_hasCorrectEndpoints() {
+        assertEquals(3, GrowthOSDatabase.MIGRATION_3_4.startVersion)
+        assertEquals(4, GrowthOSDatabase.MIGRATION_3_4.endVersion)
+    }
+
     // ---------- 辅助 ----------
 
     /**
@@ -454,6 +621,14 @@ class GrowthOSDatabaseTest {
      */
     private suspend fun insertErrorType(name: String): Long {
         val id = db.errorTypeDao().insert(ErrorType(name = name, createdAt = 0))
+        return if (id > 0) id else db.errorTypeDao().getByName(name)!!.id
+    }
+
+    /** 插入正向因素并返回真实 id(种子含正向名,IGNORE 策略重名时兜底查回)。 */
+    private suspend fun insertPositiveFactor(name: String): Long {
+        val id = db.errorTypeDao().insert(
+            ErrorType(name = name, createdAt = 0, polarity = Polarity.POSITIVE)
+        )
         return if (id > 0) id else db.errorTypeDao().getByName(name)!!.id
     }
 

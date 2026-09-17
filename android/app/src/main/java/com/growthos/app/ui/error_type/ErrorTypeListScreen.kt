@@ -31,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -39,6 +40,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.growthos.app.GrowthOSApp
 import com.growthos.app.data.local.entity.ErrorType
+import com.growthos.app.domain.model.Polarity
 import com.growthos.app.ui.components.Eyebrow
 import com.growthos.app.ui.components.LedgerRule
 import com.growthos.app.ui.components.NextActionBlock
@@ -100,7 +102,7 @@ private fun ErrorTypeListContent(
     onOpenCreate: () -> Unit,
     onOpenEdit: (ErrorType) -> Unit,
     onRename: (Long, String) -> Unit,
-    onCreate: (String) -> Unit,
+    onCreate: (String, Polarity) -> Unit,
     onDismissDialog: () -> Unit,
     hasDuplicate: (String, Long?) -> Boolean,
     onRequestDelete: (ErrorType) -> Unit,
@@ -114,7 +116,7 @@ private fun ErrorTypeListContent(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("错误类型", style = MaterialTheme.typography.titleLarge) },
+                title = { Text("关键因素", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
@@ -122,7 +124,7 @@ private fun ErrorTypeListContent(
                 },
                 actions = {
                     IconButton(onClick = onOpenCreate) {
-                        Icon(Icons.Outlined.Add, contentDescription = "新建错误类型")
+                        Icon(Icons.Outlined.Add, contentDescription = "新建关键因素")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -140,13 +142,32 @@ private fun ErrorTypeListContent(
             if (state.isEmpty) {
                 EmptyHint()
             } else {
-                state.errorTypes.forEach { et ->
-                    ErrorTypeRow(
-                        errorType = et,
-                        onClick = { onOpenEdit(et) },
-                        onDelete = { onRequestDelete(et) }
-                    )
-                    LedgerRule(modifier = Modifier.padding(horizontal = 20.dp))
+                // 按极性分组(feature 2026-09-16 / 设计 D7):负向在上,正向在下
+                val negative = state.errorTypes.filter { it.polarity == Polarity.NEGATIVE }
+                val positive = state.errorTypes.filter { it.polarity == Polarity.POSITIVE }
+                if (negative.isNotEmpty()) {
+                    GroupLabel("负向因素", negative.size)
+                    negative.forEach { et ->
+                        ErrorTypeRow(
+                            errorType = et,
+                            onClick = { onOpenEdit(et) },
+                            onDelete = { onRequestDelete(et) },
+                            nameColor = MaterialTheme.colorScheme.onBackground
+                        )
+                        LedgerRule(modifier = Modifier.padding(horizontal = 20.dp))
+                    }
+                }
+                if (positive.isNotEmpty()) {
+                    GroupLabel("正向因素", positive.size)
+                    positive.forEach { et ->
+                        ErrorTypeRow(
+                            errorType = et,
+                            onClick = { onOpenEdit(et) },
+                            onDelete = { onRequestDelete(et) },
+                            nameColor = MaterialTheme.colorScheme.primary
+                        )
+                        LedgerRule(modifier = Modifier.padding(horizontal = 20.dp))
+                    }
                 }
             }
             Spacer(Modifier.height(32.dp))
@@ -159,9 +180,9 @@ private fun ErrorTypeListContent(
         ErrorTypeEditDialog(
             dialog = dialog,
             hasDuplicate = { name -> hasDuplicate(name, excludeId) },
-            onSave = { name ->
+            onSave = { name, polarity ->
                 when (dialog) {
-                    is ErrorTypeDialog.Create -> onCreate(name)
+                    is ErrorTypeDialog.Create -> onCreate(name, polarity)
                     is ErrorTypeDialog.Edit -> onRename(dialog.errorType.id, name)
                 }
             },
@@ -185,7 +206,7 @@ private fun ErrorTypeListContent(
     pendingDelete?.let { et ->
         AlertDialog(
             onDismissRequest = onDismissDelete,
-            title = { Text("删除错误类型") },
+            title = { Text("删除关键因素") },
             text = { Text("删除「${et.name}」?未引用时可直接删除。") },
             confirmButton = {
                 TextButton(onClick = { onConfirmDelete(et) }) {
@@ -200,10 +221,30 @@ private fun ErrorTypeListContent(
 }
 
 @Composable
+private fun GroupLabel(text: String, count: Int) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Eyebrow(text)
+        Text(
+            "$count 条",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontFamily = MonoFamily
+        )
+    }
+}
+
+@Composable
 private fun ErrorTypeRow(
     errorType: ErrorType,
     onClick: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    nameColor: Color
 ) {
     Surface(
         onClick = onClick,
@@ -220,7 +261,7 @@ private fun ErrorTypeRow(
             Text(
                 errorType.name,
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onBackground,
+                color = nameColor,
                 fontWeight = FontWeight.SemiBold
             )
             TextButton(onClick = onDelete) {
@@ -237,11 +278,11 @@ private fun EmptyHint() {
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 24.dp)
     ) {
-        Eyebrow("还没有错误类型")
+        Eyebrow("还没有关键因素")
         Spacer(Modifier.height(10.dp))
         NextActionBlock(
             label = "开始",
-            text = "错误类型跨领域复用,用来标记样本和训练项针对的失误。点右上角新建第一个,或录样本时内联创建。"
+            text = "关键因素跨领域复用,负向标记样本和训练项针对的失误,正向记录成功局中做对的事。点右上角新建第一个,或录样本时内联创建。"
         )
     }
 }
@@ -251,31 +292,33 @@ private fun EmptyHint() {
 private val previewErrorTypes = listOf(
     ErrorType(id = 1, name = "边界条件遗漏", createdAt = 0),
     ErrorType(id = 2, name = "压力下急躁", createdAt = 1),
-    ErrorType(id = 3, name = "复查不足", createdAt = 2)
+    ErrorType(id = 3, name = "复查不足", createdAt = 2),
+    ErrorType(id = 4, name = "执行到位", createdAt = 3, polarity = Polarity.POSITIVE),
+    ErrorType(id = 5, name = "状态良好", createdAt = 4, polarity = Polarity.POSITIVE)
 )
 
-@Preview(name = "错误类型列表(有数据)", showBackground = true, heightDp = 600)
+@Preview(name = "关键因素列表(有数据)", showBackground = true, heightDp = 600)
 @Composable
 private fun ErrorTypeListDataPreview() {
     GrowthOSTheme {
         ErrorTypeListContent(
             state = ErrorTypeListUiState(errorTypes = previewErrorTypes),
             onBack = {}, onOpenCreate = {}, onOpenEdit = {}, onRename = { _, _ -> },
-            onCreate = {}, onDismissDialog = {}, hasDuplicate = { _, _ -> false },
+            onCreate = { _, _ -> }, onDismissDialog = {}, hasDuplicate = { _, _ -> false },
             onRequestDelete = {}, onConfirmDelete = {}, onDismissDelete = {},
             onDismissBlocked = {}, pendingDelete = null, blockedCount = null
         )
     }
 }
 
-@Preview(name = "错误类型列表(空)", showBackground = true, heightDp = 500)
+@Preview(name = "关键因素列表(空)", showBackground = true, heightDp = 500)
 @Composable
 private fun ErrorTypeListEmptyPreview() {
     GrowthOSTheme {
         ErrorTypeListContent(
             state = ErrorTypeListUiState(),
             onBack = {}, onOpenCreate = {}, onOpenEdit = {}, onRename = { _, _ -> },
-            onCreate = {}, onDismissDialog = {}, hasDuplicate = { _, _ -> false },
+            onCreate = { _, _ -> }, onDismissDialog = {}, hasDuplicate = { _, _ -> false },
             onRequestDelete = {}, onConfirmDelete = {}, onDismissDelete = {},
             onDismissBlocked = {}, pendingDelete = null, blockedCount = null
         )

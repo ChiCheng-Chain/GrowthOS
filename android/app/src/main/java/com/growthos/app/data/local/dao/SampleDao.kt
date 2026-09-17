@@ -103,6 +103,7 @@ interface SampleDao {
     /**
      * §6 高频错误前三(R-009)。
      * domainId=0 表示跨领域全局统计;时间范围 [startMillis, endMillis) 开区间。
+     * 口径(feature 2026-09-16 / 设计 D4):只数负向因素的失败样本,成功样本不进榜。
      */
     @Query(
         """
@@ -111,6 +112,7 @@ interface SampleDao {
         INNER JOIN error_types et ON s.errorTypeId = et.id
         WHERE (:domainId = 0 OR s.domainId = :domainId)
           AND s.recordedAt >= :startMillis AND s.recordedAt < :endMillis
+          AND et.polarity = 'NEGATIVE'
         GROUP BY s.errorTypeId
         ORDER BY count DESC
         LIMIT :limit
@@ -126,15 +128,18 @@ interface SampleDao {
     /**
      * §6 可控错误占比(R-009)。分母 [total],分子 [controllable]。
      * 单条 SQL 出两个值,避免两次查询。情绪强度为空的样本仍计入 total。
+     * 口径(feature 2026-09-16 / 设计 D4):分子分母均只数负向因素的失败样本。
      */
     @Query(
         """
         SELECT
           COUNT(*) AS total,
-          SUM(CASE WHEN attribution = 'CONTROLLABLE' THEN 1 ELSE 0 END) AS controllable
-        FROM samples
-        WHERE (:domainId = 0 OR domainId = :domainId)
-          AND recordedAt >= :startMillis AND recordedAt < :endMillis
+          SUM(CASE WHEN s.attribution = 'CONTROLLABLE' THEN 1 ELSE 0 END) AS controllable
+        FROM samples s
+        INNER JOIN error_types et ON s.errorTypeId = et.id
+        WHERE (:domainId = 0 OR s.domainId = :domainId)
+          AND s.recordedAt >= :startMillis AND s.recordedAt < :endMillis
+          AND et.polarity = 'NEGATIVE'
         """
     )
     fun observeControllableRatio(
@@ -204,6 +209,7 @@ interface SampleDao {
      * §6 周复盘 F5:可控归因样本中频次最高的单个错误类型(高频 + 可控交叉)。
      * WHERE attribution='CONTROLLABLE' 一次出结果,不复用 F2 过滤(避免 N+1,设计 D2)。
      * 无可控错误时查不到行,Flow emit null。
+     * 口径(feature 2026-09-16 / 设计 D4):只数负向因素的失败样本。
      */
     @Query(
         """
@@ -213,6 +219,7 @@ interface SampleDao {
         WHERE (:domainId = 0 OR s.domainId = :domainId)
           AND s.recordedAt >= :startMillis AND s.recordedAt < :endMillis
           AND s.attribution = 'CONTROLLABLE'
+          AND et.polarity = 'NEGATIVE'
         GROUP BY s.errorTypeId
         ORDER BY count DESC
         LIMIT 1

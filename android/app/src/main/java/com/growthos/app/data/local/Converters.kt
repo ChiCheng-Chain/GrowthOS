@@ -3,6 +3,7 @@ package com.growthos.app.data.local
 import androidx.room.TypeConverter
 import com.growthos.app.domain.model.Attribution
 import com.growthos.app.domain.model.KnowledgeType
+import com.growthos.app.domain.model.Polarity
 import com.growthos.app.domain.model.TrainingStatus
 
 /**
@@ -28,4 +29,10 @@ class Converters {
 
     @TypeConverter
     fun toKnowledgeType(value: String): KnowledgeType = KnowledgeType.valueOf(value)
+
+    @TypeConverter
+    fun fromPolarity(value: Polarity): String = value.name
+
+    @TypeConverter
+    fun toPolarity(value: String): Polarity = Polarity.valueOf(value)
 }

@@ -16,6 +16,9 @@ import kotlinx.serialization.json.Json
  * 抽成接口便于测试注入桩实现(SettingsViewModelTest 验状态机,不碰真数据层)。
  * 默认实现在各 Repository 拉全量,组装 [ExportPayload],encode 为 JSON 字符串。
  * 调用方(SettingsViewModel)拿到字符串后,经 SAF CreateDocument 写入用户选定的 Uri。
+ *
+ * meta.version=3(feature 2026-09-16 / 设计 D9):errorTypes 带 polarity 字段。
+ * v1(样本含 description)/v2(六字段样本)仍可被导入器读取(polarity 回填 NEGATIVE)。
  */
 interface DataExporter {
     /** 拉全量五表 + meta → JSON 字符串。空库导出为空列表,不崩。 */
@@ -49,7 +52,7 @@ class DataExporterImpl(
             trainings = trainingRepository.observeAllWithNames().first().map { it.training },
             principles = principleRepository.observeAll().first(),
             knowledges = knowledgeRepository.observeAll().first(),
-            meta = ExportMeta(version = 2, exportedAt = now())
+            meta = ExportMeta(version = 3, exportedAt = now())
         )
         return json.encodeToString(ExportPayload.serializer(), payload)
     }

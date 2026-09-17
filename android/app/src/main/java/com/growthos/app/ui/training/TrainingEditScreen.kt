@@ -153,7 +153,7 @@ private fun TrainingEditContent(
             LedgerRule(modifier = Modifier.padding(top = 12.dp))
 
             // 2. 错误类型(预填可改 + 新建)
-            FieldLabel("错误类型")
+            FieldLabel("关键因素")
             FlowRow(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -213,12 +213,12 @@ private fun TrainingEditContent(
         var newName by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showNewErrorTypeDialog = false },
-            title = { Text("新建错误类型") },
+            title = { Text("新建关键因素") },
             text = {
                 OutlinedTextField(
                     value = newName,
                     onValueChange = { newName = it },
-                    placeholder = { Text("错误类型名") },
+                    placeholder = { Text("关键因素名") },
                     singleLine = true
                 )
             },
@@ -276,7 +276,7 @@ private fun NewErrorTypeChip(onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Icon(Icons.Outlined.Add, contentDescription = "新建错误类型")
+            Icon(Icons.Outlined.Add, contentDescription = "新建关键因素")
             Text("新建", style = MaterialTheme.typography.labelLarge)
         }
     }
@@ -338,7 +338,7 @@ private val previewErrorTypes = listOf(
     ErrorType(id = 2, name = "压力下急躁", createdAt = 1)
 )
 
-@Preview(name = "新建训练项(预填错误类型)", showBackground = true, heightDp = 1000)
+@Preview(name = "新建训练项(预填关键因素)", showBackground = true, heightDp = 1000)
 @Composable
 private fun TrainingEditPrefillPreview() {
     GrowthOSTheme {

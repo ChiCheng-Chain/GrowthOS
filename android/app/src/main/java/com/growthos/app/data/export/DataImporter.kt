@@ -120,7 +120,7 @@ class DataImporterImpl(
     /** 语义预检(设计 D4 ③):给出精确拒绝理由,不依赖 DB 报文。 */
     private fun validate(payload: ExportPayload) {
         checkUniqueIds("领域", payload.domains.map { it.id })
-        checkUniqueIds("错误类型", payload.errorTypes.map { it.id })
+        checkUniqueIds("关键因素", payload.errorTypes.map { it.id })
         checkUniqueIds("样本", payload.samples.map { it.id })
         checkUniqueIds("训练项", payload.trainings.map { it.id })
         checkUniqueIds("原则", payload.principles.map { it.id })
@@ -132,16 +132,16 @@ class DataImporterImpl(
         payload.samples.firstOrNull { it.domainId !in domainIds }
             ?.let { throw ImportException("样本(id=${it.id})引用了备份中不存在的领域(id=${it.domainId})") }
         payload.samples.firstOrNull { it.errorTypeId !in errorTypeIds }
-            ?.let { throw ImportException("样本(id=${it.id})引用了备份中不存在的错误类型(id=${it.errorTypeId})") }
+            ?.let { throw ImportException("样本(id=${it.id})引用了备份中不存在的关键因素(id=${it.errorTypeId})") }
         payload.trainings.firstOrNull { it.domainId !in domainIds }
             ?.let { throw ImportException("训练项(id=${it.id})引用了备份中不存在的领域(id=${it.domainId})") }
         payload.trainings.firstOrNull { it.errorTypeId !in errorTypeIds }
-            ?.let { throw ImportException("训练项(id=${it.id})引用了备份中不存在的错误类型(id=${it.errorTypeId})") }
+            ?.let { throw ImportException("训练项(id=${it.id})引用了备份中不存在的关键因素(id=${it.errorTypeId})") }
 
         // error_types.name 唯一索引对应的预检
         payload.errorTypes.groupBy { it.name }.values
             .firstOrNull { it.size > 1 }
-            ?.let { throw ImportException("备份中错误类型名称重复(${it.first().name})") }
+            ?.let { throw ImportException("备份中关键因素名称重复(${it.first().name})") }
     }
 
     private fun checkUniqueIds(tableLabel: String, ids: List<Long>) {

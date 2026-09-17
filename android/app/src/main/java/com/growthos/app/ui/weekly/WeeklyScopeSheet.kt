@@ -25,6 +25,7 @@ import com.growthos.app.ui.components.FilterChipItem
  *
  * 时间(7/14/30 天)+ 领域(全部/单领域)两节,选中即时生效——
  * 直接回调既有 selectDays/selectDomain,弹层保持打开。
+ * title 参数化(feature 2026-09-17 / 设计 D11):练习看板复用本组件传「练习口径」。
  */
 @Composable
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -35,7 +36,8 @@ fun WeeklyScopeSheet(
     availableDomains: List<Domain>,
     onSelectDays: (Int) -> Unit,
     onSelectDomain: (DomainFilter) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    title: String = "复盘口径"
 ) {
     if (!visible) return
     ModalBottomSheet(
@@ -51,7 +53,7 @@ fun WeeklyScopeSheet(
                 .padding(bottom = 24.dp)
         ) {
             Text(
-                "复盘口径",
+                title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onBackground,

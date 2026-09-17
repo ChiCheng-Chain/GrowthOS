@@ -5,6 +5,7 @@ import com.growthos.app.data.local.GrowthOSDatabase
 import com.growthos.app.data.local.entity.Domain
 import com.growthos.app.data.local.entity.ErrorType
 import com.growthos.app.data.local.entity.Knowledge
+import com.growthos.app.data.local.entity.PracticeSession
 import com.growthos.app.data.local.entity.Principle
 import com.growthos.app.data.local.entity.Sample
 import com.growthos.app.data.local.entity.Training
@@ -12,6 +13,7 @@ import com.growthos.app.data.repository.DomainRepository
 import com.growthos.app.data.repository.ErrorTypeRepository
 import com.growthos.app.data.repository.ErrorTypeRepositoryImpl
 import com.growthos.app.data.repository.KnowledgeRepository
+import com.growthos.app.data.repository.PracticeSessionRepository
 import com.growthos.app.data.repository.PrincipleRepository
 import com.growthos.app.data.repository.SampleRepository
 import com.growthos.app.data.repository.TrainingRepository
@@ -56,6 +58,7 @@ class DataExporterTest {
             trainingRepository = TrainingRepository(db.trainingDao()),
             principleRepository = PrincipleRepository(db.principleDao()),
             knowledgeRepository = KnowledgeRepository(db.knowledgeDao()),
+            practiceSessionRepository = PracticeSessionRepository(db.practiceSessionDao()),
             now = { fixedNow }
         )
     }
@@ -78,7 +81,8 @@ class DataExporterTest {
         assertTrue(payload.trainings.isEmpty())
         assertTrue(payload.principles.isEmpty())
         assertTrue(payload.knowledges.isEmpty())
-        assertEquals(3, payload.meta.version)
+        assertTrue(payload.practiceSessions.isEmpty())
+        assertEquals(4, payload.meta.version)
         assertEquals(fixedNow, payload.meta.exportedAt)
     }
 
@@ -158,7 +162,7 @@ class DataExporterTest {
         assertEquals(KnowledgeType.EXPERIENCE, k.type)
         assertEquals(domainId, k.domainId)
 
-        assertEquals(3, payload.meta.version)
+        assertEquals(4, payload.meta.version)
         assertEquals(fixedNow, payload.meta.exportedAt)
     }
 
@@ -209,6 +213,26 @@ class DataExporterTest {
         assertEquals(2, payload.trainings.size)
         assertEquals(setOf("g1", "g2"), payload.trainings.map { it.goal }.toSet())
     }
+
+    @Test
+    fun `export v4 carries practiceSessions including active row`() = runTest {
+        awaitSeed()
+        val domainId = db.domainDao().insert(Domain(name = "编程", createdAt = 0))
+        db.practiceSessionDao().insert(
+            PracticeSession(domainId = domainId, startedAt = 100L, endedAt = 200L, note = "完成", createdAt = 50L)
+        )
+        db.practiceSessionDao().insert(
+            PracticeSession(domainId = domainId, startedAt = 300L, endedAt = null, note = null, createdAt = 290L)
+        )
+        val payload = json.decodeFromString(ExportPayload.serializer(), exporter.export())
+        assertEquals(2, payload.practiceSessions.size)
+        // 进行中行原样导出(endedAt=null 保真,设计 D13)
+        val active = payload.practiceSessions.first { it.endedAt == null }
+        assertEquals(300L, active.startedAt)
+        assertTrue(raw(exporter).contains("\"practiceSessions\""))
+    }
+
+    private suspend fun raw(exporter: DataExporter): String = exporter.export()
 
     /** 种子已含 R-004 八个常见名,insert 重名返回 -1,兜底 getByName 取真实 id。 */
     private suspend fun insertErrorType(name: String): Long {

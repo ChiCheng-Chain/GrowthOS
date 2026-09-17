@@ -40,14 +40,15 @@ class ImportPreview internal constructor(
     val currentCounts: TableCounts
 )
 
-/** 六表计数(确认框对照与成功反馈共用)。 */
+/** 七表计数(确认框对照与成功反馈共用)。practiceSessions 为 v4 字段(feature 2026-09-17),旧文件为 0。 */
 data class TableCounts(
     val domains: Int,
     val errorTypes: Int,
     val samples: Int,
     val trainings: Int,
     val principles: Int,
-    val knowledges: Int
+    val knowledges: Int,
+    val practiceSessions: Int = 0
 )
 
 /** apply 的产物:成功反馈文案数据(BR-6「已导入:N 样本 / M 领域…」)。 */
@@ -83,7 +84,7 @@ class DataImporterImpl(
             throw ImportException("文件格式无法识别")
         }
         val version = payload.meta.version
-        if (version != 1 && version != 2 && version != 3) {
+        if (version != 1 && version != 2 && version != 3 && version != 4) {
             throw ImportException("不支持的备份版本(v$version)")
         }
         validate(payload)
@@ -103,18 +104,42 @@ class DataImporterImpl(
             database.knowledgeDao().deleteAll()
             database.principleDao().deleteAll()
             database.trainingDao().deleteAll()
+            database.practiceSessionDao().deleteAll()
             database.sampleDao().deleteAll()
             database.errorTypeDao().deleteAll()
             database.domainDao().deleteAll()
-            // 插入按依赖序:父表先插(设计 D3 / BR-3)
+            // 插入按依赖序:父表先插(设计 D3 / BR-3);practice_sessions 只依赖 domains,与 trainings 同层(D13)
             database.domainDao().insertAll(p.domains)
             database.errorTypeDao().insertAll(p.errorTypes)
             database.sampleDao().insertAll(p.samples)
             database.trainingDao().insertAll(p.trainings)
+            database.practiceSessionDao().insertAll(
+                normalizeActiveSessions(p.practiceSessions, preview.exportedAt)
+            )
             database.principleDao().insertAll(p.principles)
             database.knowledgeDao().insertAll(p.knowledges)
         }
         return ImportCounts(p.counts())
+    }
+
+    /**
+     * 进行中不变式的导入侧修复(D3):v4 文件可能被手工编辑出多条 endedAt=null 的病态行,
+     * 保留 id 最小一条,其余 endedAt 写为文件导出时刻(防幽灵进行中)。
+     */
+    private fun normalizeActiveSessions(
+        sessions: List<com.growthos.app.data.local.entity.PracticeSession>,
+        exportedAt: Long
+    ): List<com.growthos.app.data.local.entity.PracticeSession> {
+        val actives = sessions.filter { it.endedAt == null }
+        if (actives.size <= 1) return sessions
+        val keepId = actives.minBy { it.id }.id
+        return sessions.map { session ->
+            if (session.endedAt == null && session.id != keepId) {
+                session.copy(endedAt = exportedAt)
+            } else {
+                session
+            }
+        }
     }
 
     /** 语义预检(设计 D4 ③):给出精确拒绝理由,不依赖 DB 报文。 */
@@ -125,6 +150,7 @@ class DataImporterImpl(
         checkUniqueIds("训练项", payload.trainings.map { it.id })
         checkUniqueIds("原则", payload.principles.map { it.id })
         checkUniqueIds("知识", payload.knowledges.map { it.id })
+        checkUniqueIds("练习记录", payload.practiceSessions.map { it.id })
 
         val domainIds = payload.domains.map { it.id }.toSet()
         val errorTypeIds = payload.errorTypes.map { it.id }.toSet()
@@ -137,6 +163,8 @@ class DataImporterImpl(
             ?.let { throw ImportException("训练项(id=${it.id})引用了备份中不存在的领域(id=${it.domainId})") }
         payload.trainings.firstOrNull { it.errorTypeId !in errorTypeIds }
             ?.let { throw ImportException("训练项(id=${it.id})引用了备份中不存在的关键因素(id=${it.errorTypeId})") }
+        payload.practiceSessions.firstOrNull { it.domainId !in domainIds }
+            ?.let { throw ImportException("练习记录(id=${it.id})引用了备份中不存在的领域(id=${it.domainId})") }
 
         // error_types.name 唯一索引对应的预检
         payload.errorTypes.groupBy { it.name }.values
@@ -156,7 +184,8 @@ class DataImporterImpl(
         samples = samples.size,
         trainings = trainings.size,
         principles = principles.size,
-        knowledges = knowledges.size
+        knowledges = knowledges.size,
+        practiceSessions = practiceSessions.size
     )
 
     private suspend fun GrowthOSDatabase.counts() = TableCounts(
@@ -165,6 +194,7 @@ class DataImporterImpl(
         samples = sampleDao().countAll(),
         trainings = trainingDao().countAll(),
         principles = principleDao().countAll(),
-        knowledges = knowledgeDao().countAll()
+        knowledges = knowledgeDao().countAll(),
+        practiceSessions = practiceSessionDao().countAll()
     )
 }

@@ -329,10 +329,10 @@ class DataImporterTest {
     // ---------- D0:导出版本修正 ----------
 
     @Test
-    fun `exporter emits version 3`() = runTest {
+    fun `exporter emits version 4`() = runTest {
         awaitSeed()
         val payload = decodePayload(exporter.export())
-        assertEquals(3, payload.meta.version)
+        assertEquals(4, payload.meta.version)
     }
 
     // ---------- v3 极性(feature 2026-09-16 / 设计 D9) ----------
@@ -375,6 +375,75 @@ class DataImporterTest {
             com.growthos.app.domain.model.Polarity.POSITIVE,
             db.errorTypeDao().getByName("执行到位")!!.polarity
         )
+    }
+
+    // ---------- v4 练习记录(feature 2026-09-17 / 设计 D13 / BR-11) ----------
+
+    @Test
+    fun `import v2 backup leaves practice table empty`() = runTest {
+        awaitSeed()
+        // v2/v3 夹具无 practiceSessions 字段 → 默认空列表 → 练习表空(BR-11)
+        val json = buildJson(
+            domains = """[{"id": 1, "name": "领域", "createdAt": 10, "hidden": false}]"""
+        )
+        importer.apply(importer.parse(json))
+        assertEquals(0, db.practiceSessionDao().countAll())
+    }
+
+    @Test
+    fun `import v4 roundtrips practice sessions`() = runTest {
+        awaitSeed()
+        val json = buildJson(
+            metaVersion = 4,
+            domains = """[{"id": 1, "name": "领域", "createdAt": 10, "hidden": false}]""",
+            practiceSessions = """[
+                {"id": 5, "domainId": 1, "startedAt": 100, "endedAt": 200, "note": "完成", "createdAt": 90},
+                {"id": 6, "domainId": 1, "startedAt": 300, "endedAt": null, "note": null, "createdAt": 290}
+            ]"""
+        )
+        importer.apply(importer.parse(json))
+
+        val rows = db.practiceSessionDao().getAll().sortedBy { it.id }
+        assertEquals(2, rows.size)
+        // id 保真 + 进行中行 endedAt=null 保真(AC-12)
+        assertEquals(5L, rows[0].id)
+        assertEquals(200L, rows[0].endedAt)
+        assertEquals("完成", rows[0].note)
+        assertEquals(6L, rows[1].id)
+        assertEquals(null, rows[1].endedAt)
+    }
+
+    @Test
+    fun `import v4 repairs multiple active sessions`() = runTest {
+        awaitSeed()
+        // 病态文件:两条 endedAt=null(设计 D3)→ 保留 id 最小一条,其余 endedAt=exportedAt
+        val json = buildJson(
+            metaVersion = 4,
+            domains = """[{"id": 1, "name": "领域", "createdAt": 10, "hidden": false}]""",
+            practiceSessions = """[
+                {"id": 5, "domainId": 1, "startedAt": 100, "endedAt": null, "note": null, "createdAt": 90},
+                {"id": 8, "domainId": 1, "startedAt": 300, "endedAt": null, "note": null, "createdAt": 290}
+            ]"""
+        )
+        importer.apply(importer.parse(json))
+
+        val actives = db.practiceSessionDao().getAll().filter { it.endedAt == null }
+        assertEquals(1, actives.size)
+        assertEquals(5L, actives.single().id)
+        // 被修复的行 endedAt = 夹具 exportedAt(1000)
+        assertEquals(1000L, db.practiceSessionDao().getAll().first { it.id == 8L }.endedAt)
+    }
+
+    @Test
+    fun `import v4 rejects dangling practice foreign key`() = runTest {
+        awaitSeed()
+        val json = buildJson(
+            metaVersion = 4,
+            practiceSessions = """[
+                {"id": 5, "domainId": 99, "startedAt": 100, "endedAt": 200, "note": null, "createdAt": 90}
+            ]"""
+        )
+        assertRejects(json) { "练习记录" }
     }
 
     @Test
@@ -470,7 +539,8 @@ class DataImporterTest {
         samples = db.sampleDao().countAll(),
         trainings = db.trainingDao().countAll(),
         principles = db.principleDao().countAll(),
-        knowledges = db.knowledgeDao().countAll()
+        knowledges = db.knowledgeDao().countAll(),
+        practiceSessions = db.practiceSessionDao().countAll()
     )
 
     /** 拼装合法 v2 JSON,各表默认空列表。 */
@@ -481,7 +551,8 @@ class DataImporterTest {
         samples: String = "[]",
         trainings: String = "[]",
         principles: String = "[]",
-        knowledges: String = "[]"
+        knowledges: String = "[]",
+        practiceSessions: String = "[]"
     ): String = """
         {
           "domains": $domains,
@@ -490,6 +561,7 @@ class DataImporterTest {
           "trainings": $trainings,
           "principles": $principles,
           "knowledges": $knowledges,
+          "practiceSessions": $practiceSessions,
           "meta": {"version": $metaVersion, "exportedAt": 1000}
         }
     """.trimIndent()

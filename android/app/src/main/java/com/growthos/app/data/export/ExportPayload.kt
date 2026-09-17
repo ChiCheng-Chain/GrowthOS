@@ -3,6 +3,7 @@ package com.growthos.app.data.export
 import com.growthos.app.data.local.entity.Domain
 import com.growthos.app.data.local.entity.ErrorType
 import com.growthos.app.data.local.entity.Knowledge
+import com.growthos.app.data.local.entity.PracticeSession
 import com.growthos.app.data.local.entity.Principle
 import com.growthos.app.data.local.entity.Sample
 import com.growthos.app.data.local.entity.Training
@@ -23,10 +24,12 @@ data class ExportMeta(
 )
 
 /**
- * 导出载荷:六表全量 + meta,序列化为 JSON 写入用户选定位置(R-013)。
+ * 导出载荷:七表全量 + meta,序列化为 JSON 写入用户选定位置(R-013)。
  *
  * 实体已加 @Serializable(阶段 7),枚举 Attribution / TrainingStatus 自动支持。
- * 导入侧见 [DataImporter](feature 2026-08-27):v1/v2 兼容,清库重建。
+ * practiceSessions 字段(feature 2026-09-17):v4 起;v1/v2/v3 旧文件无该字段,
+ * 导入时由默认空列表回填(练习表为空,BR-11)。
+ * 导入侧见 [DataImporter](feature 2026-08-27):v1/v2/v3/v4 兼容,清库重建。
  */
 @Serializable
 data class ExportPayload(
@@ -36,5 +39,6 @@ data class ExportPayload(
     val trainings: List<Training>,
     val principles: List<Principle>,
     val knowledges: List<Knowledge>,
+    val practiceSessions: List<PracticeSession> = emptyList(),
     val meta: ExportMeta
 )

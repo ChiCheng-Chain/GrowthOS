@@ -3,6 +3,7 @@ package com.growthos.app.data.export
 import com.growthos.app.data.repository.DomainRepository
 import com.growthos.app.data.repository.ErrorTypeRepository
 import com.growthos.app.data.repository.KnowledgeRepository
+import com.growthos.app.data.repository.PracticeSessionRepository
 import com.growthos.app.data.repository.PrincipleRepository
 import com.growthos.app.data.repository.SampleRepository
 import com.growthos.app.data.repository.TrainingRepository
@@ -17,11 +18,11 @@ import kotlinx.serialization.json.Json
  * 默认实现在各 Repository 拉全量,组装 [ExportPayload],encode 为 JSON 字符串。
  * 调用方(SettingsViewModel)拿到字符串后,经 SAF CreateDocument 写入用户选定的 Uri。
  *
- * meta.version=3(feature 2026-09-16 / 设计 D9):errorTypes 带 polarity 字段。
- * v1(样本含 description)/v2(六字段样本)仍可被导入器读取(polarity 回填 NEGATIVE)。
+ * meta.version=4(feature 2026-09-17 / 设计 D13):payload 带 practiceSessions 字段。
+ * v1/v2/v3 仍可被导入器读取(practiceSessions 回填空列表)。
  */
 interface DataExporter {
-    /** 拉全量五表 + meta → JSON 字符串。空库导出为空列表,不崩。 */
+    /** 拉全量七表 + meta → JSON 字符串。空库导出为空列表,不崩。 */
     suspend fun export(): String
 }
 
@@ -36,6 +37,7 @@ class DataExporterImpl(
     private val trainingRepository: TrainingRepository,
     private val principleRepository: PrincipleRepository,
     private val knowledgeRepository: KnowledgeRepository,
+    private val practiceSessionRepository: PracticeSessionRepository? = null,
     private val now: () -> Long = TimeUtil::nowMillis
 ) : DataExporter {
 
@@ -52,7 +54,8 @@ class DataExporterImpl(
             trainings = trainingRepository.observeAllWithNames().first().map { it.training },
             principles = principleRepository.observeAll().first(),
             knowledges = knowledgeRepository.observeAll().first(),
-            meta = ExportMeta(version = 3, exportedAt = now())
+            practiceSessions = practiceSessionRepository?.getAll() ?: emptyList(),
+            meta = ExportMeta(version = 4, exportedAt = now())
         )
         return json.encodeToString(ExportPayload.serializer(), payload)
     }

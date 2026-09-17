@@ -449,7 +449,7 @@ private fun ImportConfirmDialog(
 
 /** 「N 样本 / M 领域 / K 训练项…」计数行(BR-6/BR-7 共用)。 */
 private fun countsLine(c: TableCounts): String =
-    "${c.samples} 样本 / ${c.domains} 领域 / ${c.trainings} 训练项 / ${c.principles} 原则 / ${c.knowledges} 知识"
+    "${c.samples} 样本 / ${c.domains} 领域 / ${c.trainings} 训练项 / ${c.principles} 原则 / ${c.knowledges} 知识 / ${c.practiceSessions} 练习"
 
 /** 成功提示:「已导入:N 样本 / M 领域…」(BR-6)。 */
 private fun importSuccessMessage(counts: ImportCounts): String =

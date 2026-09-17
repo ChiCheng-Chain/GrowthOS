@@ -6,6 +6,8 @@ import com.growthos.app.data.export.DataExporterImpl
 import com.growthos.app.data.export.DataImporter
 import com.growthos.app.data.export.DataImporterImpl
 import com.growthos.app.data.local.GrowthOSDatabase
+import com.growthos.app.data.local.LastPracticeDomainStore
+import com.growthos.app.data.local.LastPracticeDomainStoreImpl
 import com.growthos.app.data.local.SelectedDomainStore
 import com.growthos.app.data.local.SelectedDomainStoreImpl
 import com.growthos.app.data.local.ThemeStore
@@ -14,6 +16,7 @@ import com.growthos.app.data.repository.DomainRepository
 import com.growthos.app.data.repository.ErrorTypeRepository
 import com.growthos.app.data.repository.ErrorTypeRepositoryImpl
 import com.growthos.app.data.repository.KnowledgeRepository
+import com.growthos.app.data.repository.PracticeSessionRepository
 import com.growthos.app.data.repository.PrincipleRepository
 import com.growthos.app.data.repository.SampleRepository
 import com.growthos.app.data.repository.TrainingRepository
@@ -36,11 +39,17 @@ class AppContainer(private val context: Context) {
     val trainingRepository: TrainingRepository by lazy { TrainingRepository(database.trainingDao()) }
     val principleRepository: PrincipleRepository by lazy { PrincipleRepository(database.principleDao()) }
     val knowledgeRepository: KnowledgeRepository by lazy { KnowledgeRepository(database.knowledgeDao()) }
+    val practiceSessionRepository: PracticeSessionRepository by lazy {
+        PracticeSessionRepository(database.practiceSessionDao())
+    }
 
     val selectedDomainStore: SelectedDomainStore by lazy { SelectedDomainStoreImpl(context) }
 
     /** 主题偏好(feature 2026-08-28):DataStore 进程级唯一,由容器持有。 */
     val themeStore: ThemeStore by lazy { ThemeStoreImpl(context) }
+
+    /** 上次计时的领域(feature 2026-09-17 / 设计 D5):DataStore 进程级唯一,由容器持有。 */
+    val lastPracticeDomainStore: LastPracticeDomainStore by lazy { LastPracticeDomainStoreImpl(context) }
 
     /** 阶段 7 导出:聚合六 Repository 拉全量(R-013)。懒加载,首次导出才构造。 */
     val dataExporter: DataExporter by lazy {
@@ -50,7 +59,8 @@ class AppContainer(private val context: Context) {
             sampleRepository = sampleRepository,
             trainingRepository = trainingRepository,
             principleRepository = principleRepository,
-            knowledgeRepository = knowledgeRepository
+            knowledgeRepository = knowledgeRepository,
+            practiceSessionRepository = practiceSessionRepository
         )
     }
 

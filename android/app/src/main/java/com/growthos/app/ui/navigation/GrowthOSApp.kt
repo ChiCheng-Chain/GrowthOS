@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddCircle
 import androidx.compose.material.icons.outlined.Insights
+import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material.icons.outlined.ViewList
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -28,6 +29,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.growthos.app.ui.domain_view.DomainScreen
+import com.growthos.app.ui.practice.PracticeBoardScreen
+import com.growthos.app.ui.practice.PracticeEditScreen
+import com.growthos.app.ui.practice.PracticeTabScreen
 import com.growthos.app.ui.record.RecordScreen
 import com.growthos.app.ui.record.SampleEditScreen
 import com.growthos.app.ui.sample_list.SampleListScreen
@@ -51,14 +55,15 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 
-// 三个底部 Tab 入口
+// 四个底部 Tab 入口(feature 2026-09-17:+练习,设计 D14)
 private sealed class Tab(val route: String, val label: String, val icon: ImageVector) {
     data object Record : Tab("record", "记录", Icons.Outlined.AddCircle)
     data object Domains : Tab("domains", "领域", Icons.Outlined.ViewList)
+    data object Practice : Tab("practice", "练习", Icons.Outlined.Timer)
     data object Weekly : Tab("weekly", "复盘", Icons.Outlined.Insights)
 }
 
-private val tabs = listOf(Tab.Record, Tab.Domains, Tab.Weekly)
+private val tabs = listOf(Tab.Record, Tab.Domains, Tab.Practice, Tab.Weekly)
 
 // 子页面路由(技术方案 §4.1)
 private object Routes {
@@ -114,6 +119,13 @@ private object Routes {
         val did = domainId?.takeIf { it > 0 } ?: -1L
         return "knowledge_edit?knowledgeId=$kid&domainId=$did"
     }
+
+    // 练习时间(feature 2026-09-17 / 设计 D15)
+    const val PRACTICE_EDIT_WITH_ID = "practice_edit?practiceId={practiceId}"
+    fun practiceEdit(practiceId: Long? = null): String =
+        if (practiceId != null && practiceId > 0) "practice_edit?practiceId=$practiceId"
+        else "practice_edit"
+    const val PRACTICE_BOARD = "practice_board"
 }
 
 @Composable
@@ -193,6 +205,16 @@ fun GrowthOSApp() {
                     }
                 )
             }
+            composable(Tab.Practice.route) {
+                PracticeTabScreen(
+                    onNavigateToEdit = { practiceId ->
+                        navController.navigate(Routes.practiceEdit(practiceId))
+                    },
+                    onNavigateToBoard = {
+                        navController.navigate(Routes.PRACTICE_BOARD)
+                    }
+                )
+            }
             composable(Tab.Weekly.route) {
                 WeeklyScreen(
                     onNavigateToCreateTraining = { errorTypeId ->
@@ -213,6 +235,26 @@ fun GrowthOSApp() {
                     onNavigateToSettings = {
                         navController.navigate(Routes.SETTINGS)
                     }
+                )
+            }
+            composable(
+                route = Routes.PRACTICE_EDIT_WITH_ID,
+                arguments = listOf(
+                    navArgument("practiceId") {
+                        type = NavType.LongType
+                        defaultValue = -1L
+                    }
+                )
+            ) { backStackEntry ->
+                val practiceId = backStackEntry.arguments?.getLong("practiceId") ?: -1L
+                PracticeEditScreen(
+                    practiceId = practiceId.takeIf { it > 0 },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(route = Routes.PRACTICE_BOARD) {
+                PracticeBoardScreen(
+                    onBack = { navController.popBackStack() }
                 )
             }
             composable(
